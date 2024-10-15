@@ -1,13 +1,12 @@
-using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Events;
-using UnityEngine.UI;
 using UnityEngine.UI.Extensions;
 using Random = UnityEngine.Random;
+using DG.Tweening;
+using DG.Tweening.Core;
 
 namespace MainGame.ConnectDots
 {
@@ -21,6 +20,10 @@ namespace MainGame.ConnectDots
         private Queue<UILineRenderer> _lineQueue = new(); // convert to UI line renderer
         private List<Connect_NumberObj> _numberObjList = new();
         private int _nextObjIndex = 0;
+
+        private int _cartoonMoveCurrIndex;
+        private float _cartoonMoveSpeed = 1470;
+        private Tween _cartoonMoveTween;
 
         #endregion
 
@@ -67,6 +70,7 @@ namespace MainGame.ConnectDots
                 list[rand] = temp;
             }
         }
+
 
         /// <summary>
         /// Very efficient method to shuffle T
@@ -119,6 +123,11 @@ namespace MainGame.ConnectDots
             });
         }
 
+
+        /// <summary>
+        /// Initialization of the game
+        /// </summary>
+        /// <param name="data">List of numbers to be put inside the sequence</param>
         private void SpawnLinePoolAndSetupNumObjs(List<int> data)
         {
             // shuffle placement transforms
@@ -131,6 +140,7 @@ namespace MainGame.ConnectDots
                 }
             }
 
+            // Create the pool of UI Line Renderers for faster usage, single run creates 1 obj in pool
             void SetupLineRenderer()
             {
                 GameObject lObj = new GameObject("LineObject");
@@ -144,6 +154,7 @@ namespace MainGame.ConnectDots
                 _lineQueue.Enqueue(line);
             }
 
+            // Func to connect line between 2 points. Handling dynamically.
             void ConnectLineRenderer()
             {
                 UILineRenderer lObj = _lineQueue.Dequeue();
@@ -155,12 +166,17 @@ namespace MainGame.ConnectDots
                 lObj.Points.Add(_numberObjList[_nextObjIndex].transform.position);
             }
 
+            // Main setup of what happens on clicking number
             void SetupButtonClick(Connect_NumberObj obj, int currIndex)
             {
                 if (currIndex == _nextObjIndex)
                 {
                     if (currIndex != 0)
                         ConnectLineRenderer();
+
+                    // if 1st button then spawn cartoon at its position
+                    else
+                        LineAnimCartoon.transform.position = obj.transform.position;
 
                     _gameManager.GM_OnCorrectConnect?.Invoke();
                     _nextObjIndex++;
@@ -169,11 +185,14 @@ namespace MainGame.ConnectDots
                     obj.Button.onClick.RemoveAllListeners();
 
                     obj.DoneImage.SetActive(true);
+
+                    StartLineCartoonAnim();
                 }
 
                 // add OnIncorrect.
             }
 
+            // Main run area
             for (int i = 0; i < data.Count; i++)
             {
                 SetupLineRenderer();
@@ -191,14 +210,34 @@ namespace MainGame.ConnectDots
                 nObj.NumberText.text = data[i].ToString();
 
                 int helper = i;
-                nObj.Button.onClick.AddListener(() =>
-                {
-                    // anim added
-                    SetupButtonClick(nObj, helper);
-                });
+                nObj.Button.onClick.AddListener(() => { SetupButtonClick(nObj, helper); });
 
                 _numberObjList.Add(nObj);
             }
+        }
+
+
+        /// <summary>
+        /// Manage Line cartoon movement using DOTween (anim control can be added here)
+        /// </summary>
+        private void StartLineCartoonAnim()
+        {
+            if (_cartoonMoveTween == null)
+            {
+                _cartoonMoveTween = LineAnimCartoon.transform.DOMove(
+                    _numberObjList[_cartoonMoveCurrIndex].transform.position,
+                    _cartoonMoveSpeed).SetSpeedBased(true).OnComplete(() =>
+                {
+                    _cartoonMoveTween = null;
+                    _cartoonMoveCurrIndex++;
+                    if (_cartoonMoveCurrIndex < _nextObjIndex)
+                    {
+                        StartLineCartoonAnim();
+                    }
+                });
+            }
+
+            else return;
         }
     }
 }

@@ -56,7 +56,7 @@ namespace MainGame.ConnectDots
                 _uiManager.UIM_OnCorrectConnect?.Invoke();
                 _answersCount++;
 
-                /* updated to end when the animation reaches the last answer
+                /* updated to end when the animation reaches the last answer. Pending code addition, add where required
                  if (_answersCount == GameData.AnswersList.Count)
                 {
                     GM_OnGameEnd?.Invoke();

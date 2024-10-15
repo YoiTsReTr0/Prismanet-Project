@@ -119,8 +119,10 @@
 -define:ENABLE_TIMELINE
 -define:ENABLE_LEGACY_INPUT_MANAGER
 -define:TEXTCORE_FONT_ENGINE_1_5_OR_NEWER
+-define:DOTWEEN
 -define:CSHARP_7_OR_LATER
 -define:CSHARP_7_3_OR_NEWER
+-r:"Assets/Extensions/DOTween/DOTween.dll"
 -r:"C:/Unity/Editors/2022.3.24f1/Editor/Data/Managed/UnityEngine/UnityEditor.CoreModule.dll"
 -r:"C:/Unity/Editors/2022.3.24f1/Editor/Data/Managed/UnityEngine/UnityEditor.DeviceSimulatorModule.dll"
 -r:"C:/Unity/Editors/2022.3.24f1/Editor/Data/Managed/UnityEngine/UnityEditor.DiagnosticsModule.dll"
@@ -375,6 +377,14 @@
 -r:"Library/Bee/artifacts/1900b0aEDbg.dag/UnityUIExtensions.ref.dll"
 -analyzer:"C:/Unity/Editors/2022.3.24f1/Editor/Data/Tools/Unity.SourceGenerators/Unity.Properties.SourceGenerator.dll"
 -analyzer:"C:/Unity/Editors/2022.3.24f1/Editor/Data/Tools/Unity.SourceGenerators/Unity.SourceGenerators.dll"
+"Assets/Extensions/DOTween/Modules/DOTweenModuleAudio.cs"
+"Assets/Extensions/DOTween/Modules/DOTweenModuleEPOOutline.cs"
+"Assets/Extensions/DOTween/Modules/DOTweenModulePhysics.cs"
+"Assets/Extensions/DOTween/Modules/DOTweenModulePhysics2D.cs"
+"Assets/Extensions/DOTween/Modules/DOTweenModuleSprite.cs"
+"Assets/Extensions/DOTween/Modules/DOTweenModuleUI.cs"
+"Assets/Extensions/DOTween/Modules/DOTweenModuleUnityVersion.cs"
+"Assets/Extensions/DOTween/Modules/DOTweenModuleUtils.cs"
 "Assets/Scripts/Connect_DataSO.cs"
 "Assets/Scripts/Connect_GameManager.cs"
 "Assets/Scripts/Connect_NumberObj.cs"
