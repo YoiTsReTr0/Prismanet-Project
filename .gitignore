@@ -75,3 +75,5 @@ crashlytics-build.properties
 *.rsp
 *.dag
 /Projects/ConnectDots/Library
+/Projects/Color Biggest Number/Library
+/Projects/Color Biggest Number/.vscode
