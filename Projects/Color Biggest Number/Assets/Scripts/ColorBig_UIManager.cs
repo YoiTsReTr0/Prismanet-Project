@@ -180,5 +180,10 @@ namespace ColorBigGame.Main
             GameOverPanel.SetActive(true);
             GameOverResultText.text = $"{score}/{maxScore}";
         }
+
+        public void TempSetColor(Image img)
+        {
+            _selectionColor = img.color;
+        }
     }
 }
