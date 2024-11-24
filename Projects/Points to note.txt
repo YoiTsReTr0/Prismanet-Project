@@ -1,0 +1,1 @@
+1. UI manager OnCorrectUpdateUI event specifically calls for updating UI data which requires data transfer from other scripts, specifically from Game Manager
