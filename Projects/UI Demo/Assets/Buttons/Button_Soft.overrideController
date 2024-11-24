@@ -1,0 +1,12 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!221 &22100000
+AnimatorOverrideController:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_Name: Button_Soft
+  m_Controller: {fileID: 9100000, guid: 1f79986ab405d3c4898ae72108766f73, type: 2}
+  m_Clips:
+  - m_OriginalClip: {fileID: 7400000, guid: 8dc73e81f7bab1f4392f3ef6f6255d88, type: 2}
+    m_OverrideClip: {fileID: 7400000, guid: ed4241492634b486f8a62973b4ee5405, type: 2}
