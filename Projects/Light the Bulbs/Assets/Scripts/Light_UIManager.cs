@@ -16,11 +16,14 @@ public class Light_UIManager : MonoBehaviour
 
     private bool _isAddition = true;
     private int _currLightsOn = 0;
-    private int _quesCount;
+    private int _quesTotalCount;
+    private int _quesAttemptedCount;
 
     #endregion
 
     #region Editor Variables
+
+    [SerializeField, Space(35)] private float AvgAnimTime = 2;
 
     [SerializeField] private Light_LightButton[] LightButtons;
 
@@ -29,6 +32,12 @@ public class Light_UIManager : MonoBehaviour
 
     [SerializeField] private GameObject CorrectAnsResultPanel;
     [SerializeField] private GameObject IncorrectAnsResultPanel;
+    [SerializeField] private Color DefQuesTextColor;
+    [SerializeField] private Slider ProgressBar;
+    [SerializeField] private Button SubmitBtn;
+
+    [Space(35)] [SerializeField] private GameObject GameOverPanel;
+    [SerializeField] private TextMeshProUGUI GameOverResultText;
 
     #endregion
 
@@ -37,10 +46,26 @@ public class Light_UIManager : MonoBehaviour
     [Space(35), Header("Events")] public UnityEvent<bool, int> UIM_OnGameStart = new();
 
     public UnityEvent<Vector3> UIM_SetupNextQuestion = new();
-    public UnityEvent UIM_GameOver = new();
-    public UnityEvent<int> UIM_UpdateUIForCorrectAnswer = new();
+    public UnityEvent<int> UIM_GameOver = new();
+    public UnityEvent<int, Vector3> UIM_UpdateUIForCorrectAnswer = new();
+    public UnityEvent<int, Vector3> UIM_UpdateUIForIncorrectAnswer = new();
 
     #endregion
+
+    #region Pre-requisites
+
+    private void SmoothChange(float currentValue, float targetValue, float duration)
+    {
+        DOVirtual.Float(
+            currentValue,
+            targetValue,
+            duration,
+            (value) => { ProgressBar.value = value; }
+        ).OnComplete(() => { });
+    }
+
+    #endregion
+
 
     private void Awake()
     {
@@ -57,17 +82,59 @@ public class Light_UIManager : MonoBehaviour
         UIM_OnGameStart.AddListener((bool isAddition, int quesCount) =>
         {
             _isAddition = isAddition;
-            _quesCount = quesCount;
+            _quesTotalCount = quesCount;
             ScoreText.text = "0 / " + quesCount.ToString();
         });
 
         UIM_SetupNextQuestion.AddListener(SetupQuestion);
 
-        UIM_UpdateUIForCorrectAnswer.AddListener((int val) =>
+        UIM_UpdateUIForCorrectAnswer.AddListener((int val, Vector3 dat) =>
         {
-            ScoreText.text = val + " / " + _quesCount.ToString();
-            QuesText.text = " _____ ";
+            ScoreText.text = _quesAttemptedCount + " / " + _quesTotalCount.ToString();
+            //QuesText.text = " _____ ";
+            SmoothChange(ProgressBar.value, (float)val / (float)_quesTotalCount, AvgAnimTime);
+
+            SubmitBtn.interactable = false;
+
+            DOVirtual.DelayedCall(AvgAnimTime, () =>
+            {
+                SubmitBtn.interactable = true;
+
+                CorrectAnsResultPanel.SetActive(false);
+                if (_quesAttemptedCount < _quesTotalCount)
+                {
+                    UIM_SetupNextQuestion?.Invoke(dat);
+                }
+            });
         });
+
+        UIM_UpdateUIForIncorrectAnswer.AddListener((int val, Vector3 dat) =>
+        {
+            ScoreText.text = _quesAttemptedCount + " / " + _quesTotalCount.ToString();
+            //QuesText.text = " _____ ";
+
+            SubmitBtn.interactable = false;
+            DOVirtual.DelayedCall(AvgAnimTime, () =>
+            {
+                SubmitBtn.interactable = true;
+
+                IncorrectAnsResultPanel.SetActive(false);
+                if (_quesAttemptedCount < _quesTotalCount)
+                {
+                    UIM_SetupNextQuestion?.Invoke(dat);
+                }
+            });
+        });
+
+        UIM_GameOver.AddListener((int count) =>
+        {
+            SubmitBtn.gameObject.SetActive(false);
+            DOVirtual.DelayedCall(AvgAnimTime, () => { GameOverPanel.SetActive(true); });
+
+            GameOverResultText.text = $"Score: {count} / {_quesTotalCount}";
+        });
+
+        SubmitBtn.onClick.AddListener(CheckAnswer);
 
         foreach (var t in LightButtons)
         {
@@ -80,7 +147,7 @@ public class Light_UIManager : MonoBehaviour
         _currQuestion = dat;
         _currLightsOn = (int)dat.x;
 
-        QuesText.color = Color.white;
+        QuesText.color = DefQuesTextColor;
         string sign = _isAddition ? "+" : "-";
         QuesText.text = $"{dat.x} {sign} {dat.y} = ";
 
@@ -121,8 +188,10 @@ public class Light_UIManager : MonoBehaviour
         btn.LightOn = lightOn;
     }
 
-    public void CheckAnswer()
+    private void CheckAnswer()
     {
+        _quesAttemptedCount++;
+
         for (int i = 0; i < LightButtons.Length; i++)
         {
             LightButtons[i].LightBtn.interactable = false;
@@ -137,11 +206,7 @@ public class Light_UIManager : MonoBehaviour
             QuesText.text =
                 $"{_currQuestion.x.ToString()} {sign} {_currQuestion.y.ToString()} = {_currQuestion.z.ToString()}";
 
-            DOVirtual.DelayedCall(2, () =>
-            {
-                _gameManager.GM_OnAnswerCorrect?.Invoke();
-                CorrectAnsResultPanel.SetActive(false);
-            });
+            _gameManager.GM_OnAnswerCorrect?.Invoke();
         }
 
         else
@@ -153,11 +218,8 @@ public class Light_UIManager : MonoBehaviour
             QuesText.text =
                 $"{_currQuestion.x.ToString()} {sign} {_currQuestion.y.ToString()} = {_currQuestion.z.ToString()} <u><color=red>not {_currLightsOn}</u>";
 
-            DOVirtual.DelayedCall(2, () =>
-            {
-                _gameManager.GM_OnAnswerIncorrect?.Invoke();
-                IncorrectAnsResultPanel.SetActive(false);
-            });
+
+            _gameManager.GM_OnAnswerIncorrect?.Invoke();
         }
     }
 }

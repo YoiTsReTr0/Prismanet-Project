@@ -87,13 +87,14 @@ public class Light_GameManager : MonoBehaviour
             _attemptedAnsCount++;
             _corrAnsCount++;
 
-            _uiManager.UIM_UpdateUIForCorrectAnswer?.Invoke(_corrAnsCount);
+            _uiManager.UIM_UpdateUIForCorrectAnswer?.Invoke(_corrAnsCount, GetQuestion());
 
             if (_attemptedAnsCount < _questionsCount)
-                _uiManager.UIM_SetupNextQuestion?.Invoke(GetQuestion());
+                //_uiManager.UIM_SetupNextQuestion?.Invoke(GetQuestion());
+                return;
             else
             {
-                _uiManager.UIM_GameOver?.Invoke();
+                _uiManager.UIM_GameOver?.Invoke(_corrAnsCount);
                 GM_OnGameOver?.Invoke();
             }
         });
@@ -102,11 +103,14 @@ public class Light_GameManager : MonoBehaviour
         {
             _attemptedAnsCount++;
 
+            _uiManager.UIM_UpdateUIForIncorrectAnswer?.Invoke(_corrAnsCount, GetQuestion());
+
             if (_attemptedAnsCount < _questionsCount)
-                _uiManager.UIM_SetupNextQuestion?.Invoke(GetQuestion());
+                //_uiManager.UIM_SetupNextQuestion?.Invoke(GetQuestion());
+                return;
             else
             {
-                _uiManager.UIM_GameOver?.Invoke();
+                _uiManager.UIM_GameOver?.Invoke(_corrAnsCount);
                 GM_OnGameOver?.Invoke();
             }
         });
