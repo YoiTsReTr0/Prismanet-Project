@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using DG.Tweening;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Events;
@@ -15,8 +16,14 @@ namespace ColorBigGame.Main
 
         #region Editor Variables
 
+        [SerializeField] private float AvgAnimTime = 2;
+
         [Header("Heading Area")] [SerializeField]
         private TextMeshProUGUI ScoreText;
+
+        [SerializeField] private Slider ProgressBar;
+
+        [SerializeField] private List<GameObject> SelectColorActiveImgList = new();
 
         [Header("Game Area")] [SerializeField] private Transform QuestionsParent;
         [SerializeField] private ColorBig_NumObj QuestionsObj;
@@ -25,6 +32,9 @@ namespace ColorBigGame.Main
         private GameObject GameOverPanel;
 
         [SerializeField] private TextMeshProUGUI GameOverResultText;
+
+        [Header("Number Sprites")] [SerializeField]
+        private List<Sprite> NumbersList = new();
 
         #endregion
 
@@ -40,12 +50,15 @@ namespace ColorBigGame.Main
 
         private List<ColorBig_NumObj> _questionsObjList = new();
 
+        private int _quesTotalCount;
+        private int _quesAtteptedCount;
+
         #endregion
 
         #region Unity Events
 
         [Header("Events")]
-        public UnityEvent<int[]> UIM_OnGameStart = new(); // Called from Game Manager when game starts
+        public UnityEvent<int[], int> UIM_OnGameStart = new(); // Called from Game Manager when game starts
 
         public UnityEvent<int[]> UIM_SetupNextQuestion = new(); // Called from Game Manager when game starts
         public UnityEvent<int, int> UIM_GameOver = new(); // Called from Game Manager when game starts
@@ -68,6 +81,16 @@ namespace ColorBigGame.Main
             }
         }
 
+        private void SmoothChange(float currentValue, float targetValue, float duration)
+        {
+            DOVirtual.Float(
+                currentValue,
+                targetValue,
+                duration,
+                (value) => { ProgressBar.value = value; }
+            ).OnComplete(() => { });
+        }
+
         #endregion
 
         private void Awake()
@@ -82,8 +105,13 @@ namespace ColorBigGame.Main
         {
             _gameManager = ColorBig_GameManager.instance;
 
-            UIM_OnGameStart.AddListener(ques => SetupQuestion(ques));
-            UIM_SetupNextQuestion.AddListener(ques => StartCoroutine(DelayedSetupQuestion(ques)));
+            UIM_OnGameStart.AddListener((int[] ques, int count) =>
+            {
+                _quesTotalCount = count;
+                ScoreText.text = $"Score: 0/{_quesTotalCount} ";
+                SetupQuestion(ques);
+            });
+            UIM_SetupNextQuestion.AddListener((ques) => { StartCoroutine(DelayedSetupQuestion(ques)); });
 
             UIM_UpdateUIForCorrectAnswer.AddListener(_score => CorrectAnsUpdateUI(_score));
 
@@ -130,9 +158,12 @@ namespace ColorBigGame.Main
 
                 btnObj.ObjText.text = question[i].ToString();
 
+                btnObj.ObjImage.sprite = NumbersList[question[i] - 1];
+
                 int index = i;
                 btnObj.ObjButton.onClick.AddListener(() =>
                 {
+                    _quesAtteptedCount++;
                     if (index == _currCorrectIndex)
                         SetupButtonClick(true, btnObj);
 
@@ -151,14 +182,16 @@ namespace ColorBigGame.Main
                 if (correct)
                 {
                     _gameManager.GM_OnAnswerCorrect?.Invoke();
-                    btnObj.ObjText.color = _selectionColor;
+                    //btnObj.ObjText.color = _selectionColor;
+                    btnObj.ObjImage.color = _selectionColor;
                 }
                 else
                 {
                     _gameManager.GM_OnAnswerIncorrect?.Invoke();
-                    btnObj.ObjText.color = Color.red;
+                    //btnObj.ObjText.color = Color.red;
+                    btnObj.ObjImage.color = Color.red;
 
-                    _questionsObjList[_currCorrectIndex].ObjText.color = _selectionColor;
+                    _questionsObjList[_currCorrectIndex].ObjImage.color = _selectionColor;
                 }
 
                 _questionsObjList.Clear();
@@ -172,7 +205,8 @@ namespace ColorBigGame.Main
 
         private void CorrectAnsUpdateUI(int score)
         {
-            ScoreText.text = score.ToString();
+            ScoreText.text = $"Score: {score}/{_quesTotalCount} ";
+            SmoothChange(ProgressBar.value, (float)score / (float)_quesTotalCount, AvgAnimTime);
         }
 
         private void InitGameOver(int score, int maxScore)
@@ -181,9 +215,15 @@ namespace ColorBigGame.Main
             GameOverResultText.text = $"{score}/{maxScore}";
         }
 
-        public void TempSetColor(Image img)
+        public void TempSetColor(string hexCode)
         {
-            _selectionColor = img.color;
+            if (ColorUtility.TryParseHtmlString(hexCode, out Color color))
+            {
+                _selectionColor = color;
+            }
+
+            foreach (var t in SelectColorActiveImgList)
+                t.SetActive(false);
         }
     }
 }

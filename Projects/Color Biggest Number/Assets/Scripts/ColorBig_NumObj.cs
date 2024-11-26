@@ -8,4 +8,5 @@ public class ColorBig_NumObj : MonoBehaviour
 {
     public Button ObjButton;
     public TextMeshProUGUI ObjText;
+    public Image ObjImage;
 }

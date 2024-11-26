@@ -94,7 +94,7 @@ namespace ColorBigGame.Main
 
             GM_OnGameStart.AddListener(() =>
             {
-                _UIManager.UIM_OnGameStart?.Invoke(GetQuestion(0, 9));
+                _UIManager.UIM_OnGameStart?.Invoke(GetQuestion(1, 10), NumOfQuestions);
                 //_UIManager.UIM_SetupNextQuestion?.Invoke();
             });
 
@@ -108,7 +108,7 @@ namespace ColorBigGame.Main
                     GM_OnGameOver?.Invoke();
 
                 else
-                    _UIManager.UIM_SetupNextQuestion?.Invoke(GetQuestion(0, 10));
+                    _UIManager.UIM_SetupNextQuestion?.Invoke(GetQuestion(1, 10));
 
                 _UIManager.UIM_UpdateUIForCorrectAnswer?.Invoke(_score);
             });
@@ -120,7 +120,7 @@ namespace ColorBigGame.Main
                     GM_OnGameOver?.Invoke();
 
                 else
-                    _UIManager.UIM_SetupNextQuestion?.Invoke(GetQuestion(0, 10));
+                    _UIManager.UIM_SetupNextQuestion?.Invoke(GetQuestion(1, 10));
             });
 
 
