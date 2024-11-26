@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using TMPro;
@@ -28,6 +29,8 @@ namespace MainGame.ConnectDots
         #endregion
 
         #region Editor Variables
+
+        [SerializeField] private List<Sprite> NumbersSpriteList = new();
 
         [Header("Heading Area Vars")] [SerializeField]
         private TextMeshProUGUI HeadingCriteriaText;
@@ -123,6 +126,19 @@ namespace MainGame.ConnectDots
             });
         }
 
+        private void Update()
+        {
+            /*if (_cartoonMoveCurrIndex >= _numberObjList.Count)
+            {
+                Debug.Log("Checking");
+
+                float dist = Vector3.Distance(LineAnimCartoon.transform.position,
+                    _numberObjList[^1].transform.position);
+                if (dist == 0.1f)
+                {
+                }
+            }*/
+        }
 
         /// <summary>
         /// Initialization of the game
@@ -207,7 +223,9 @@ namespace MainGame.ConnectDots
                 spawnParent = RandomPlacementList[listIndex].AvailableChildren.Dequeue();
 
                 Connect_NumberObj nObj = Instantiate(NumberObjPrefab, spawnParent, false);
+
                 nObj.NumberText.text = data[i].ToString();
+                nObj.NumberImage.sprite = NumbersSpriteList[data[i]];
 
                 int helper = i;
                 nObj.Button.onClick.AddListener(() => { SetupButtonClick(nObj, helper); });
@@ -234,6 +252,11 @@ namespace MainGame.ConnectDots
                     {
                         StartLineCartoonAnim();
                     }
+                    
+                    else if (_cartoonMoveCurrIndex >= _numberObjList.Count)
+                        _gameManager.GM_OnGameEnd?.Invoke();
+
+                    
                 });
             }
 

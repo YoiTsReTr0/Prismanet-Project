@@ -10,6 +10,7 @@ namespace MainGame.ConnectDots
     {
         public Button Button;
         public TextMeshProUGUI NumberText;
+        public Image NumberImage;
         public GameObject DoneImage;
     }
 }
