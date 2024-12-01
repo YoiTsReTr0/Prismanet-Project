@@ -278,7 +278,7 @@ namespace QuizGame.LevelPlay
         /// </summary>
         /// <param name="corrAns">Count of correct answers</param>
         /// <param name="totalQues">Total count of questions in the level</param>
-        private void GameOverSetup(int corrAns, int totalQues)
+        private void GameOverSetup(int correctAns, int totalQues)
         {
             _gameOver = true;
             DOVirtual.DelayedCall(_averageAnimDurations + 1, () =>
@@ -287,7 +287,7 @@ namespace QuizGame.LevelPlay
                 _audioManger.PlaySFXOneShotHigh(_audioManger.GameOverClip);
             });
 
-            for (int i = 0; i < GetStarsCount((float)corrAns, totalQues); i++)
+            for (int i = 0; i < GetStarsCount((float)correctAns, totalQues); i++)
                 AchievedStarsImages[i].color = AchievedStarColor;
         }
 
