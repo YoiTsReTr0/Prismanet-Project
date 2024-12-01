@@ -6,6 +6,7 @@ using UnityEngine.Serialization;
 [CreateAssetMenu(fileName = "New Pattern Game Data", menuName = "Create Pattern Data")]
 public class PatternDataSO : ScriptableObject
 {
+    [Range(1, 5)] public int LivesCount = 3;
     public Sprite RotateableSprite;
 
     [Header("Question Constraints")] [Tooltip("Total count of boxes including fixed and rotatable boxes")]

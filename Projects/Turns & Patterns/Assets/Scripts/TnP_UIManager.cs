@@ -2,8 +2,10 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using DG.Tweening;
+using TMPro;
 using UnityEngine;
 using UnityEngine.Events;
+using UnityEngine.UI;
 
 namespace MainGame.TurnsAndPatterns
 {
@@ -26,6 +28,10 @@ namespace MainGame.TurnsAndPatterns
 
         [SerializeField] private float AvgAnimTime = 2;
 
+        [Header("Header Area")] [SerializeField]
+        private Image[] LivesImages;
+
+
         [Header("Gameplay Area")] [SerializeField]
         private GameObject ObjSpawnParent;
 
@@ -38,6 +44,12 @@ namespace MainGame.TurnsAndPatterns
         [Header("Game Over Area")] [SerializeField]
         private GameObject GameOverPanel;
 
+        [SerializeField] private TextMeshProUGUI GameOverText;
+        [SerializeField] private Image[] AchievedStarsImages;
+
+
+        [Header("Misc Area")] [SerializeField] private Color AchievedStarColor;
+
         #endregion
 
         #region Unity Events
@@ -45,8 +57,8 @@ namespace MainGame.TurnsAndPatterns
         [Space(35), Header("Events")] public UnityEvent<PatternDataSO> UIM_OnGameStart = new();
 
         public UnityEvent UIM_UpdateUIForCorrectAnswer = new();
-        public UnityEvent UIM_UpdateUIForIncorrectAnswer = new();
-        public UnityEvent UIM_GameOver = new();
+        public UnityEvent<int> UIM_UpdateUIForIncorrectAnswer = new();
+        public UnityEvent<bool, int, int> UIM_GameOver = new();
 
         #endregion
 
@@ -94,6 +106,34 @@ namespace MainGame.TurnsAndPatterns
             return zRotation;
         }
 
+        /// <summary>
+        /// Provides obtained stars out of 3 by provided quotient
+        /// </summary>
+        /// <param name="quotient">Value for stars</param>
+        /// <returns></returns>
+        private int GetStarsCount(float quotient)
+        {
+            int stars = 0;
+
+            if (quotient == 1)
+                stars = 3;
+
+            else if (quotient >= 0.6)
+            {
+                stars = 2;
+            }
+
+            else if (quotient >= 0.2)
+            {
+                stars = 1;
+            }
+
+            else if (quotient < 0.2)
+                stars = 0;
+
+            return stars;
+        }
+
         #endregion
 
         private void Awake()
@@ -112,6 +152,11 @@ namespace MainGame.TurnsAndPatterns
             {
                 _gameData = data;
                 SetupGame();
+
+                for (int i = 0; i < _gameData.LivesCount; i++)
+                {
+                    LivesImages[i].gameObject.SetActive(true);
+                }
             });
 
             UIM_UpdateUIForCorrectAnswer.AddListener(() =>
@@ -120,17 +165,29 @@ namespace MainGame.TurnsAndPatterns
                 DOVirtual.DelayedCall(AvgAnimTime, () =>
                 {
                     CorrectResultPanel.SetActive(false);
-                    _gameManager.GM_OnGameOver?.Invoke();
+                    _gameManager.GM_OnGameOver?.Invoke(true);
                 });
             });
 
-            UIM_UpdateUIForIncorrectAnswer.AddListener(() =>
+            UIM_UpdateUIForIncorrectAnswer.AddListener((int count) =>
             {
                 IncorrectResultPanel.SetActive(true);
-                DOVirtual.DelayedCall(AvgAnimTime, () => { IncorrectResultPanel.SetActive(false); });
+                DOVirtual.DelayedCall(AvgAnimTime * 0.9f, () =>
+                {
+                    IncorrectResultPanel.SetActive(false);
+                    LivesImages[count].color = Color.white;
+                });
             });
 
-            UIM_GameOver.AddListener(() => { GameOverPanel.SetActive(true); });
+            UIM_GameOver.AddListener((bool win, int correctAns, int totalQues) =>
+            {
+                GameOverPanel.SetActive(true);
+                GameOverText.text = win ? "Well Done" : "Out Of Lives";
+
+                // Setup Stars
+                for (int i = 0; i < GetStarsCount((float)correctAns / totalQues); i++)
+                    AchievedStarsImages[i].color = AchievedStarColor;
+            });
         }
 
         private void SetupGame()
@@ -197,9 +254,23 @@ namespace MainGame.TurnsAndPatterns
             _currSelObj.RotateImage.transform.rotation =
                 Quaternion.Euler(0, 0, _currSelObj.RotateImage.transform.rotation.eulerAngles.z + zRot);
 
-            int rotNo = (zRot / 45 + (int)_currSelObj.CurrDirection) >= 0
+            int rotNo = 0;
+
+            int tempValue = zRot / 45 + (int)_currSelObj.CurrDirection;
+
+            if (tempValue >= 0)
+            {
+                rotNo = tempValue - 8 * (tempValue / 8);
+                Debug.Log(tempValue + "   " + rotNo);
+            }
+            else
+            {
+                rotNo = 8 + tempValue;
+            }
+
+            /*(zRot / 45 + (int)_currSelObj.CurrDirection) >= 0
                 ? (zRot / 45 + (int)_currSelObj.CurrDirection)
-                : 8 + (zRot / 45 + (int)_currSelObj.CurrDirection);
+                : 8 + (zRot / 45 + (int)_currSelObj.CurrDirection);*/
 
             _currSelObj.CurrDirection = (ImageDirection)rotNo;
         }

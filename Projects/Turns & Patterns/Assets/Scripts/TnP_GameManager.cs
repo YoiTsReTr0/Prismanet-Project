@@ -14,6 +14,9 @@ namespace MainGame.TurnsAndPatterns
 
         private TnP_UIManager _uiManager;
 
+        private int _currLivesCount;
+        private int _totalLivesCount;
+
         #endregion
 
         #region Editor Variables
@@ -27,7 +30,7 @@ namespace MainGame.TurnsAndPatterns
         [HideInInspector] public UnityEvent GM_OnGameStart = new();
         [HideInInspector] public UnityEvent GM_OnAnswerCorrect = new();
         [HideInInspector] public UnityEvent GM_OnAnswerIncorrect = new();
-        [HideInInspector] public UnityEvent GM_OnGameOver = new();
+        [HideInInspector] public UnityEvent<bool> GM_OnGameOver = new();
 
         #endregion
 
@@ -47,12 +50,26 @@ namespace MainGame.TurnsAndPatterns
         {
             _uiManager = TnP_UIManager.instance;
 
-            GM_OnGameStart.AddListener(() => { _uiManager.UIM_OnGameStart?.Invoke(GameData); });
+            GM_OnGameStart.AddListener(() =>
+            {
+                _uiManager.UIM_OnGameStart?.Invoke(GameData);
+                _currLivesCount = _totalLivesCount = GameData.LivesCount;
+            });
 
             GM_OnAnswerCorrect.AddListener(() => { _uiManager.UIM_UpdateUIForCorrectAnswer?.Invoke(); });
 
-            GM_OnAnswerIncorrect.AddListener(() => { _uiManager.UIM_UpdateUIForIncorrectAnswer?.Invoke(); });
-            GM_OnGameOver.AddListener(() => { _uiManager.UIM_GameOver?.Invoke(); });
+            GM_OnAnswerIncorrect.AddListener(() =>
+            {
+                _currLivesCount--;
+                _uiManager.UIM_UpdateUIForIncorrectAnswer?.Invoke(_currLivesCount);
+
+                if (_currLivesCount <= 0)
+                    GM_OnGameOver?.Invoke(false);
+            });
+            GM_OnGameOver.AddListener((bool win) =>
+            {
+                _uiManager.UIM_GameOver?.Invoke(win, _currLivesCount, _totalLivesCount);
+            });
 
             GM_OnGameStart?.Invoke();
         }
