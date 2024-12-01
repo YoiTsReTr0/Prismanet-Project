@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
+using UnityEngine.Serialization;
 
 namespace MainGame.ConnectDots
 {
@@ -16,11 +17,14 @@ namespace MainGame.ConnectDots
         private bool _gameEnd = false;
         private int _answersCount;
 
+        private int _currLivesCount;
+        [SerializeField] private int _totalLivesCount;
+
         #endregion
 
         #region Editor Variables
 
-        [SerializeField] private Connect_DataSO GameData;
+        [SerializeField] private Connect_DataSO LevelData;
 
         #endregion
 
@@ -29,7 +33,7 @@ namespace MainGame.ConnectDots
         [HideInInspector] public UnityEvent GM_OnGameStart = new();
         [HideInInspector] public UnityEvent GM_OnCorrectConnect = new();
         [HideInInspector] public UnityEvent GM_OnIncorrectConnect = new();
-        [HideInInspector] public UnityEvent GM_OnGameEnd = new();
+        [HideInInspector] public UnityEvent<bool> GM_OnGameEnd = new();
 
         #endregion
 
@@ -46,27 +50,33 @@ namespace MainGame.ConnectDots
         {
             _uiManager = Connect_UIManager.instance;
 
+            _currLivesCount = _totalLivesCount = LevelData.LivesCount;
+
+
             GM_OnGameStart.AddListener(() =>
             {
-                _uiManager.UIM_OnGameStart?.Invoke(GameData.GameCriteriaText, GameData.AnswersList);
+                _uiManager.UIM_OnGameStart?.Invoke(LevelData.GameCriteriaText, LevelData.AnswersList,
+                    _totalLivesCount);
             });
 
             GM_OnCorrectConnect.AddListener(() =>
             {
-                _uiManager.UIM_OnCorrectConnect?.Invoke();
                 _answersCount++;
-
-                /* updated to end when the animation reaches the last answer. Pending code addition, add where required
-                 if (_answersCount == GameData.AnswersList.Count)
-                {
-                    GM_OnGameEnd?.Invoke();
-                }*/
+                _uiManager.UIM_OnCorrectConnect?.Invoke(_answersCount, LevelData.AnswersList.Count);
             });
 
-            GM_OnGameEnd.AddListener(() =>
+            GM_OnIncorrectConnect.AddListener(() =>
+            {
+                _currLivesCount--;
+                _uiManager.UIM_OnWrongSelection?.Invoke(_currLivesCount);
+                if (_currLivesCount <= 0)
+                    GM_OnGameEnd?.Invoke(false);
+            });
+
+            GM_OnGameEnd.AddListener((bool win) =>
             {
                 _gameEnd = true;
-                _uiManager.UIM_OnGameEnd?.Invoke();
+                _uiManager.UIM_OnGameEnd?.Invoke(_answersCount, LevelData.AnswersList.Count, win);
                 Debug.Log("Game End");
             });
 
