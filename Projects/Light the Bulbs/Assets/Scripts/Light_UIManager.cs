@@ -19,6 +19,8 @@ public class Light_UIManager : MonoBehaviour
     private int _quesTotalCount;
     private int _quesAttemptedCount;
 
+    private int _currStars = 0;
+
     #endregion
 
     #region Editor Variables
@@ -34,10 +36,15 @@ public class Light_UIManager : MonoBehaviour
     [SerializeField] private GameObject IncorrectAnsResultPanel;
     [SerializeField] private Color DefQuesTextColor;
     [SerializeField] private Slider ProgressBar;
+    [SerializeField] private GameObject[] ProgressBarStars;
     [SerializeField] private Button SubmitBtn;
 
     [Space(35)] [SerializeField] private GameObject GameOverPanel;
     [SerializeField] private TextMeshProUGUI GameOverResultText;
+
+    [SerializeField] private Image[] AchievedStarsImages;
+
+    [Header("Misc Area")] [SerializeField] private Color AchievedStarColor;
 
     #endregion
 
@@ -54,14 +61,64 @@ public class Light_UIManager : MonoBehaviour
 
     #region Pre-requisites
 
+    private void RunGrowAndShrinkAnim(GameObject obj, Color newColor = default, bool useColor = false)
+    {
+        Vector3 OgSize1 = obj.transform.localScale;
+
+        if (useColor)
+            obj.GetComponent<Image>().color = newColor;
+
+        obj.transform.DOScale(OgSize1 + Vector3.one, AvgAnimTime / 16)
+            .OnComplete(
+                () =>
+                    obj.transform.DOScale(OgSize1, AvgAnimTime / 16));
+    }
+
+    void ClaimProgressBarStar(int starNo)
+    {
+        RunGrowAndShrinkAnim(ProgressBarStars[starNo - 1], Color.yellow, true);
+        RunGrowAndShrinkAnim(ProgressBar.handleRect.gameObject);
+    }
+
     private void SmoothChange(float currentValue, float targetValue, float duration)
     {
         DOVirtual.Float(
             currentValue,
             targetValue,
             duration,
-            (value) => { ProgressBar.value = value; }
+            (value) =>
+            {
+                ProgressBar.value = value;
+                if (_currStars < GetStarsCount(ProgressBar.value))
+                {
+                    _currStars++;
+                    ClaimProgressBarStar(_currStars);
+                }
+            }
         ).OnComplete(() => { });
+    }
+
+    private int GetStarsCount(float quotient)
+    {
+        int stars = 0;
+
+        if (quotient == 1)
+            stars = 3;
+
+        else if (quotient >= 0.6)
+        {
+            stars = 2;
+        }
+
+        else if (quotient >= 0.2)
+        {
+            stars = 1;
+        }
+
+        else if (quotient < 0.2)
+            stars = 0;
+
+        return stars;
     }
 
     #endregion
@@ -131,7 +188,10 @@ public class Light_UIManager : MonoBehaviour
             SubmitBtn.gameObject.SetActive(false);
             DOVirtual.DelayedCall(AvgAnimTime, () => { GameOverPanel.SetActive(true); });
 
-            GameOverResultText.text = $"Score: {count} / {_quesTotalCount}";
+            //GameOverResultText.text = $"Score: {count} / {_quesTotalCount}";
+
+            for (int i = 0; i < GetStarsCount((float)count / _quesTotalCount); i++)
+                AchievedStarsImages[i].color = AchievedStarColor;
         });
 
         SubmitBtn.onClick.AddListener(CheckAnswer);
