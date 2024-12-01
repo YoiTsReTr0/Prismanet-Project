@@ -1,1 +1,3 @@
-1. UI manager OnCorrectUpdateUI event specifically calls for updating UI data which requires data transfer from other scripts, specifically from Game Manager
+- UI manager OnCorrectUpdateUI event specifically calls for updating UI data which requires data transfer from other scripts, specifically from Game Manager
+
+- In Connect Dots Game => when number is greater than 9 then additional images has to be added till the number. Or simply get the modular setup for the images and make new scriptings. Much better approach. UI provision limitations led to this approach.
