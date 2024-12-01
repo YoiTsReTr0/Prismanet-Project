@@ -22,6 +22,7 @@ namespace ColorBigGame.Main
         private TextMeshProUGUI ScoreText;
 
         [SerializeField] private Slider ProgressBar;
+        [SerializeField] private GameObject[] ProgressBarStars;
 
         [SerializeField] private List<GameObject> SelectColorActiveImgList = new();
 
@@ -31,10 +32,13 @@ namespace ColorBigGame.Main
         [Header("Game Over Area")] [SerializeField]
         private GameObject GameOverPanel;
 
+        [SerializeField] private Image[] AchievedStarsImages;
         [SerializeField] private TextMeshProUGUI GameOverResultText;
 
         [Header("Number Sprites")] [SerializeField]
         private List<Sprite> NumbersList = new();
+
+        [Header("Misc Area")] [SerializeField] private Color AchievedStarColor;
 
         #endregion
 
@@ -52,6 +56,10 @@ namespace ColorBigGame.Main
 
         private int _quesTotalCount;
         private int _quesAtteptedCount;
+
+        private Coroutine _progressBarCoroutine;
+        private float _averageAnimDurations = 2f;
+        private int _currStars = 0;
 
         #endregion
 
@@ -91,6 +99,47 @@ namespace ColorBigGame.Main
             ).OnComplete(() => { });
         }
 
+        /// <summary>
+        /// Provides obtained stars out of 3 by provided quotient
+        /// </summary>
+        /// <param name="quotient">Value for stars</param>
+        /// <returns></returns>
+        private int GetStarsCount(float quotient)
+        {
+            int stars = 0;
+
+            if (quotient == 1)
+                stars = 3;
+
+            else if (quotient >= 0.6)
+            {
+                stars = 2;
+            }
+
+            else if (quotient >= 0.2)
+            {
+                stars = 1;
+            }
+
+            else if (quotient < 0.2)
+                stars = 0;
+
+            return stars;
+        }
+
+        private void RunGrowAndShrinkAnim(GameObject obj, Color newColor = default, bool useColor = false)
+        {
+            Vector3 OgSize1 = obj.transform.localScale;
+
+            if (useColor)
+                obj.GetComponent<Image>().color = newColor;
+
+            obj.transform.DOScale(OgSize1 + Vector3.one, _averageAnimDurations / 16)
+                .OnComplete(
+                    () =>
+                        obj.transform.DOScale(OgSize1, _averageAnimDurations / 16));
+        }
+
         #endregion
 
         private void Awake()
@@ -119,6 +168,8 @@ namespace ColorBigGame.Main
             {
                 StartCoroutine(DelayedGameOver(score, maxScore));
                 _gameOver = true;
+                for (int i = 0; i < GetStarsCount((float)score / maxScore); i++)
+                    AchievedStarsImages[i].color = AchievedStarColor;
             });
         }
 
@@ -134,6 +185,36 @@ namespace ColorBigGame.Main
             yield return new WaitForSeconds(3.5f);
 
             InitGameOver(score, maxScore);
+        }
+
+        private IEnumerator ProgressBarAnimIncrease(float initialVal, float finalVal)
+        {
+            void ClaimProgressBarStar(int starNo)
+            {
+                RunGrowAndShrinkAnim(ProgressBarStars[starNo - 1], Color.yellow, true);
+                RunGrowAndShrinkAnim(ProgressBar.handleRect.gameObject);
+            }
+
+
+            float elapsedTime = 0f;
+
+            while (elapsedTime < _averageAnimDurations)
+            {
+                elapsedTime += Time.deltaTime;
+
+                ProgressBar.value = Mathf.Lerp(initialVal, finalVal, elapsedTime / _averageAnimDurations);
+
+                if (_currStars < GetStarsCount(ProgressBar.value))
+                {
+                    _currStars++;
+                    ClaimProgressBarStar(_currStars);
+                }
+
+                yield return new WaitForEndOfFrame();
+            }
+
+
+            yield return null;
         }
 
         private void SetupQuestion(int[] question)
@@ -203,10 +284,12 @@ namespace ColorBigGame.Main
             }
         }
 
-        private void CorrectAnsUpdateUI(int score)
+        private void CorrectAnsUpdateUI(int correctAns)
         {
-            ScoreText.text = $"Score: {score}/{_quesTotalCount} ";
-            SmoothChange(ProgressBar.value, (float)score / (float)_quesTotalCount, AvgAnimTime);
+            ScoreText.text = $"Score: {correctAns}/{_quesTotalCount} ";
+            //SmoothChange(ProgressBar.value, (float)score / (float)_quesTotalCount, AvgAnimTime);
+            _progressBarCoroutine =
+                StartCoroutine(ProgressBarAnimIncrease(ProgressBar.value, (float)correctAns / _quesTotalCount));
         }
 
         private void InitGameOver(int score, int maxScore)
