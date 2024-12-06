@@ -9,20 +9,16 @@ public class Calendar_GameManager : MonoBehaviour
 
     private Calendar_UIManager _uiManager;
 
-    [SerializeField] private int _questionsCount = 5;
-
-    [SerializeField,
-     Tooltip("Inclusive range, Not significant as the design for this game states fixed bulbs count and placement.")]
-    private int _lowerRange = 1;
-
-    [SerializeField,
-     Tooltip("Exclusive range, Not significant as the design for this game states fixed bulbs count and placement.")]
-    private int _upperRange = 6;
-
-    [SerializeField] private bool _isAddition = true;
-
     private int _corrAnsCount;
     private int _attemptedAnsCount;
+    private int _currLives;
+
+    #endregion
+
+    #region Editor Fields
+
+    [SerializeField] private int QuestionsCount = 5;
+    [SerializeField, Range(1, 5)] private int LivesPerQues = 3;
 
     #endregion
 
@@ -31,36 +27,13 @@ public class Calendar_GameManager : MonoBehaviour
     [HideInInspector] public UnityEvent GM_OnGameStart = new();
     [HideInInspector] public UnityEvent GM_OnAnswerCorrect = new();
     [HideInInspector] public UnityEvent GM_OnAnswerIncorrect = new();
+    [HideInInspector] public UnityEvent GM_OnFullAnswerSetCorrect = new();
+    [HideInInspector] public UnityEvent GM_OnFullAnswerSetIncorrect = new();
     [HideInInspector] public UnityEvent GM_OnGameOver = new();
 
     #endregion
 
     #region Helper Functions
-
-    private Vector3 GetQuestion()
-    {
-        Vector3 dat = new();
-
-        dat.x = Random.Range(_lowerRange, _upperRange);
-        dat.y = Random.Range(_lowerRange, _upperRange);
-
-        if (!_isAddition)
-        {
-            if (dat.x < dat.y)
-            {
-                float temp;
-                temp = dat.x;
-                dat.x = dat.y;
-                dat.y = temp;
-            }
-
-            dat.z = dat.x - dat.y;
-        }
-        else
-            dat.z = dat.x + dat.y;
-
-        return dat;
-    }
 
     #endregion
 
@@ -78,45 +51,42 @@ public class Calendar_GameManager : MonoBehaviour
 
         GM_OnGameStart.AddListener(() =>
         {
-            _uiManager.UIM_OnGameStart?.Invoke(_isAddition, _questionsCount);
-            _uiManager.UIM_SetupNextQuestion?.Invoke(GetQuestion());
+            _uiManager.UIM_OnGameStart?.Invoke(QuestionsCount, LivesPerQues);
+            _uiManager.UIM_SetupNextQuestion?.Invoke();
         });
 
-        GM_OnAnswerCorrect.AddListener(() =>
-        {
-            _attemptedAnsCount++;
-            _corrAnsCount++;
-
-            _uiManager.UIM_UpdateUIForCorrectAnswer?.Invoke(_corrAnsCount, GetQuestion());
-
-            if (_attemptedAnsCount < _questionsCount)
-                //_uiManager.UIM_SetupNextQuestion?.Invoke(GetQuestion());
-                return;
-            else
-            {
-                _uiManager.UIM_GameOver?.Invoke(_corrAnsCount);
-                GM_OnGameOver?.Invoke();
-            }
-        });
+        GM_OnAnswerCorrect.AddListener(() => { _uiManager.UIM_UpdateUIForCorrectAnswer?.Invoke(); });
 
         GM_OnAnswerIncorrect.AddListener(() =>
         {
-            _attemptedAnsCount++;
-
-            _uiManager.UIM_UpdateUIForIncorrectAnswer?.Invoke(_corrAnsCount, GetQuestion());
-
-            if (_attemptedAnsCount < _questionsCount)
-                //_uiManager.UIM_SetupNextQuestion?.Invoke(GetQuestion());
-                return;
-            else
-            {
-                _uiManager.UIM_GameOver?.Invoke(_corrAnsCount);
-                GM_OnGameOver?.Invoke();
-            }
+            _currLives--;
+            _uiManager.UIM_UpdateUIForIncorrectAnswer?.Invoke(_currLives);
         });
 
-        GM_OnGameOver.AddListener(() => Debug.Log("GameOver"));
+        GM_OnFullAnswerSetCorrect.AddListener(() =>
+        {
+            _attemptedAnsCount++;
+            _corrAnsCount++;
+            _currLives = LivesPerQues;
+
+            bool continueGame = _attemptedAnsCount >= QuestionsCount ? false : true;
+            _uiManager.UIM_UpdateUIForCorrectFullAnswerSet?.Invoke(_corrAnsCount, QuestionsCount, _currLives,
+                continueGame);
+        });
+        GM_OnFullAnswerSetIncorrect.AddListener(() =>
+        {
+            _attemptedAnsCount++;
+            _currLives = LivesPerQues;
+
+            bool continueGame = _attemptedAnsCount >= QuestionsCount ? false : true;
+            _uiManager.UIM_UpdateUIForIncorrectFullAnswerSet?.Invoke(_corrAnsCount, QuestionsCount, _currLives,
+                continueGame);
+        });
+
+        GM_OnGameOver.AddListener(() => _uiManager.UIM_GameOver?.Invoke(_corrAnsCount, QuestionsCount));
 
         GM_OnGameStart?.Invoke();
+
+        _currLives = LivesPerQues;
     }
 }
