@@ -28,6 +28,10 @@ namespace MainGame.MatchingGame
         private List<OptionsObject> _rightOptionButtonList = new();
         private Button _currSelectedOptionBtn;
 
+        private Coroutine _progressBarCoroutine;
+        private float _averageAnimDurations = 2f;
+        private int _currStars = 0;
+
         #endregion
 
         #region Editor Variables
@@ -37,15 +41,22 @@ namespace MainGame.MatchingGame
 
         [SerializeField] private GameObject CoinsImage;
 
+        [SerializeField] private Image[] LivesImages;
+
         [Header("Matching Area")] [SerializeField]
         private Transform LeftOptionsParent;
 
         [SerializeField] private Transform RightOptionsParent;
         [SerializeField] private OptionsObject MatchOptionObj;
 
+        [SerializeField] private Slider ProgressBar;
+        [SerializeField] private GameObject[] ProgressBarStars;
+
         [Header("Game Over Area")] [SerializeField]
         private GameObject GameOverPanel;
 
+        [SerializeField] private TextMeshProUGUI GameOverText;
+        [SerializeField] private Image[] AchievedStarsImages;
 
         [Header("Misc Area")] [SerializeField, Tooltip("Minimum dimensions of match object, ref 4 objects")]
         private Vector2 MinMatchObjSize;
@@ -53,53 +64,25 @@ namespace MainGame.MatchingGame
         [SerializeField, Tooltip("Maximum dimensions of match object, ref 10 objects")]
         private Vector2 MaxMatchObjSize;
 
+        [SerializeField] private Color AchievedStarColor;
+
         #endregion
 
         #region Unity Events
 
-        [Header("Events")] public UnityEvent<List<Sprite>, List<Sprite>>
+        [Header("Events")] public UnityEvent<List<Sprite>, List<Sprite>, int>
             UIM_OnGameStart = new(); // Called from Game Manager when game starts
 
-        public UnityEvent UIM_SetupNextQuestion = new(); // Called from Game Manager when game starts
-        public UnityEvent UIM_GameOver = new(); // Called from Game Manager when game starts
+        public UnityEvent<int, int, bool> UIM_GameOver = new(); // Called from Game Manager when game starts
         public UnityEvent UIM_OutsideClick = new();
+        public UnityEvent<int> UIM_OnWrongSelection = new();
+        public UnityEvent<int, int> UIM_UpdateUIForCorrectAnswer = new(); // Called from Game Manager when game starts
 
-        public UnityEvent
-            UIM_UpdateUIForCorrectAnswer = new(); // Called from Game Manager when game starts
+        //public UnityEvent UIM_SetupNextQuestion = new(); // Called from Game Manager when game starts
 
         #endregion
 
         #region Helper Functions (depricated as of now. future usable)
-
-        /// <summary>
-        /// Provides obtained stars out of 3 by division of parameters
-        /// </summary>
-        /// <param name="val1">Numerator</param>
-        /// <param name="val2">Denominator</param>
-        /// <returns></returns>
-        private int GetStarsCount(float val1, int val2)
-        {
-            int stars = 0;
-            float quotient = (float)val1 / val2;
-
-            if (quotient == 1)
-                stars = 3;
-
-            else if (quotient >= 0.6)
-            {
-                stars = 2;
-            }
-
-            else if (quotient >= 0.2)
-            {
-                stars = 1;
-            }
-
-            else if (quotient < 0.2)
-                stars = 0;
-
-            return stars;
-        }
 
         /// <summary>
         /// Provides obtained stars out of 3 by provided quotient
@@ -129,6 +112,19 @@ namespace MainGame.MatchingGame
             return stars;
         }
 
+        private void RunGrowAndShrinkAnim(GameObject obj, Color newColor = default, bool useColor = false)
+        {
+            Vector3 OgSize1 = obj.transform.localScale;
+
+            if (useColor)
+                obj.GetComponent<Image>().color = newColor;
+
+            obj.transform.DOScale(OgSize1 + Vector3.one, _averageAnimDurations / 16)
+                .OnComplete(
+                    () =>
+                        obj.transform.DOScale(OgSize1, _averageAnimDurations / 16));
+        }
+
         #endregion
 
         private void Awake()
@@ -144,27 +140,35 @@ namespace MainGame.MatchingGame
         {
             _gameManager = QuizGameManager.instance;
 
-            UIM_OnGameStart.AddListener((List<Sprite> leftList, List<Sprite> rightList) =>
+            UIM_OnGameStart.AddListener((List<Sprite> leftList, List<Sprite> rightList, int LivesCount) =>
             {
                 SetupMatchingOptions(leftList, rightList);
-                //GameOverPanel.SetActive(false);
+
+                for (int i = 0; i < LivesCount; i++)
+                {
+                    LivesImages[i].gameObject.SetActive(true);
+                }
             });
 
-            //UIM_GameOver.AddListener(GameOverSetup);
+            UIM_GameOver.AddListener((int correctAns, int totalQues, bool win) =>
+            {
+                GameOverPanel.SetActive(true);
 
-            UIM_UpdateUIForCorrectAnswer.AddListener(UpdateUIForCorrectAnswer);
+                GameOverText.text = win ? "Well Done" : "Out Of Lives";
+
+                for (int i = 0; i < GetStarsCount((float)correctAns / totalQues); i++)
+                    AchievedStarsImages[i].color = AchievedStarColor;
+            });
+
+            UIM_UpdateUIForCorrectAnswer.AddListener((int correctAns, int totalQues) =>
+            {
+                _progressBarCoroutine =
+                    StartCoroutine(ProgressBarAnimIncrease(ProgressBar.value, (float)correctAns / totalQues));
+            });
 
             UIM_OutsideClick.AddListener(DeselectCurrentOption);
-        }
 
-
-        /// <summary>
-        /// Update the progress bar with each question answered correctly
-        /// </summary>
-        /// <param name="correctAns">Correct answer in the integer form simply</param>
-        /// <param name="totalQues">Total count of questions for the level</param>
-        private void UpdateUIForCorrectAnswer()
-        {
+            UIM_OnWrongSelection.AddListener((int count) => { LivesImages[count].color = Color.white; });
         }
 
 
@@ -221,7 +225,37 @@ namespace MainGame.MatchingGame
             else if (sizeFactor == 1)
                 size = new(0.5f, 0.5f, 1);
 
-            btn.gameObject.transform.DOScale(size, 1.5f);
+            btn.gameObject.transform.DOScale(size, _averageAnimDurations * 0.75f);
+        }
+
+        private IEnumerator ProgressBarAnimIncrease(float initialVal, float finalVal)
+        {
+            void ClaimProgressBarStar(int starNo)
+            {
+                RunGrowAndShrinkAnim(ProgressBarStars[starNo - 1], Color.yellow, true);
+                RunGrowAndShrinkAnim(ProgressBar.handleRect.gameObject);
+            }
+
+
+            float elapsedTime = 0f;
+
+            while (elapsedTime < _averageAnimDurations)
+            {
+                elapsedTime += Time.deltaTime;
+
+                ProgressBar.value = Mathf.Lerp(initialVal, finalVal, elapsedTime / _averageAnimDurations);
+
+                if (_currStars < GetStarsCount(ProgressBar.value))
+                {
+                    _currStars++;
+                    ClaimProgressBarStar(_currStars);
+                }
+
+                yield return new WaitForEndOfFrame();
+            }
+
+
+            yield return null;
         }
 
         #endregion
@@ -420,7 +454,7 @@ namespace MainGame.MatchingGame
         /// <param name="sizeFactor">Size of the list generally ranging from 4-10</param>
         private void ManageMatchObjSize(int sizeFactor)
         {
-            int constCount = 0;
+            /*int constCount = 0;
 
             if (sizeFactor == 3 || sizeFactor == 4 || sizeFactor >= 7)
                 constCount = 4;
@@ -430,7 +464,7 @@ namespace MainGame.MatchingGame
             LeftOptionsParent.GetComponent<GridLayoutGroup>().constraintCount = constCount;
 
 
-            RightOptionsParent.GetComponent<GridLayoutGroup>().constraintCount = constCount;
+            RightOptionsParent.GetComponent<GridLayoutGroup>().constraintCount = constCount;*/
         }
 
         #endregion

@@ -24,6 +24,9 @@ namespace MainGame.MatchingGame
         [SerializeField] private int _totalMatches = 5;
         private int _correctAnswers = 0;
 
+        private int _currLivesCount;
+        [SerializeField] private int _totalLivesCount;
+
         #endregion
 
         #region Events/Actions
@@ -31,7 +34,7 @@ namespace MainGame.MatchingGame
         [HideInInspector] public UnityEvent GM_OnGameStart; // Event can be used to restart the game
         [HideInInspector] public UnityEvent GM_OnOptionCorrect;
         [HideInInspector] public UnityEvent GM_OnOptionIncorrect;
-        [HideInInspector] public UnityEvent GM_OnGameOver;
+        [HideInInspector] public UnityEvent<bool> GM_OnGameOver;
 
         #endregion
 
@@ -53,13 +56,14 @@ namespace MainGame.MatchingGame
             _uiManager = QuizUIManager.instance;
 
             _totalMatches = LevelData.LeftOptionImages.Count;
+            _currLivesCount = _totalLivesCount = LevelData.LivesCount;
 
             // Setup and sub functions to events
             GM_OnGameStart.AddListener(() =>
             {
                 _uiManager.UIM_OnGameStart?.Invoke(LevelData.LeftOptionImages,
-                    LevelData.LeftOptionImages);
-                _uiManager.UIM_SetupNextQuestion?.Invoke();
+                    LevelData.LeftOptionImages, _totalLivesCount);
+                //_uiManager.UIM_SetupNextQuestion?.Invoke();
             });
 
             GM_OnOptionCorrect.AddListener(() =>
@@ -69,42 +73,36 @@ namespace MainGame.MatchingGame
 
                 if (_correctAnswers < _totalMatches)
                 {
-                    _uiManager.UIM_SetupNextQuestion?.Invoke();
+                    //_uiManager.UIM_SetupNextQuestion?.Invoke();
                 }
 
                 else if (_correctAnswers >= _totalMatches)
-                    GM_OnGameOver?.Invoke();
+                    GM_OnGameOver?.Invoke(true);
 
-                _uiManager.UIM_UpdateUIForCorrectAnswer?.Invoke();
+                _uiManager.UIM_UpdateUIForCorrectAnswer?.Invoke(_correctAnswers, _totalMatches);
             });
 
             GM_OnOptionIncorrect.AddListener(() =>
             {
-                _correctAnswers++;
+                _currLivesCount--;
+                _uiManager.UIM_OnWrongSelection?.Invoke(_currLivesCount);
 
-                if (_correctAnswers < _totalMatches)
-                {
-                    _uiManager.UIM_SetupNextQuestion?.Invoke();
-                }
-
-                else if (_correctAnswers >= _totalMatches)
-                    GM_OnGameOver?.Invoke();
+                if (_currLivesCount <= 0)
+                    GM_OnGameOver?.Invoke(false);
             });
 
-            GM_OnGameOver.AddListener(() =>
+            GM_OnGameOver.AddListener((bool win) =>
             {
                 _gameOver = true;
-                _uiManager.UIM_GameOver?.Invoke();
+                _uiManager.UIM_GameOver?.Invoke(_correctAnswers, _totalMatches, win);
 
                 Debug.Log("Game Over");
             });
-            
+
             GM_OnGameStart?.Invoke();
         }
 
         #region Debug Area
-
-        
 
         #endregion
     }
