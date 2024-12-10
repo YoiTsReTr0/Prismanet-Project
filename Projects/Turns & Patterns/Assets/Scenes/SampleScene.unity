@@ -2995,7 +2995,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1f987a83c830c184ab9f8572d82aa797, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  GameData: {fileID: 11400000, guid: af7441a8f43a7d44f80c41954b501217, type: 2}
+  GameData: {fileID: 11400000, guid: cf8ebc858bdff224096786e70fe6c19e, type: 2}
   GM_OnGameStart:
     m_PersistentCalls:
       m_Calls: []
