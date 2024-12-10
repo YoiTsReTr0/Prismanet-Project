@@ -208,7 +208,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 139.11682, y: 72.826935}
+  m_AnchoredPosition: {x: 139.11719, y: 72.826904}
   m_SizeDelta: {x: -278.2336, y: -73.9891}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &62206412
@@ -1213,7 +1213,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0.5}
   m_AnchorMax: {x: 1, y: 0.5}
-  m_AnchoredPosition: {x: -176.80432, y: -183.09871}
+  m_AnchoredPosition: {x: -176.80469, y: -183.09871}
   m_SizeDelta: {x: -441.6375, y: 1691.9827}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &491702290
@@ -2188,7 +2188,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _totalLivesCount: 0
-  LevelData: {fileID: 11400000, guid: 0a8395f28f1a6844d9790312fc165000, type: 2}
+  LevelData: {fileID: 11400000, guid: 4ae08a8d672c91a42aecfae3d263297b, type: 2}
   GM_OnGameStart:
     m_PersistentCalls:
       m_Calls: []
@@ -3724,6 +3724,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 9175236119061592075, guid: 649e79a71d5d66547a659590f5655748, type: 3}
+      propertyPath: m_Controller
+      value: 
+      objectReference: {fileID: 9100000, guid: 0ba0174529c122546b128352eaca26ef, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
