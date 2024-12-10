@@ -665,7 +665,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cf9b0bb1debd91f42b7b0d15bcf5c704, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _totalQuestions: 1
+  _totalQuestions: 7
   NumRange: 11
   GM_OnGameStart:
     m_PersistentCalls:

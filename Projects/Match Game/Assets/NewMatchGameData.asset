@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8f47df35efca6cc42a300691612d4c8d, type: 3}
   m_Name: NewMatchGameData
   m_EditorClassIdentifier: 
-  LivesCount: 2
+  LivesCount: 4
   LeftOptionImages:
   - {fileID: 21300000, guid: bf432ccd84d1e02458a94cd3b73e3463, type: 3}
   - {fileID: 21300000, guid: 4a6019cbc6b275e4f88c53488efd026a, type: 3}
