@@ -92,7 +92,7 @@ public class Calendar_UIManager : MonoBehaviour
     public UnityEvent<int, int> UIM_GameOver = new();
     public UnityEvent UIM_UpdateUIForCorrectAnswer = new();
     public UnityEvent<int> UIM_UpdateUIForIncorrectAnswer = new();
-    public UnityEvent<int, int, int, bool> UIM_UpdateUIForCorrectFullAnswerSet = new();
+    public UnityEvent<Vector3, int, bool> UIM_UpdateUIForCorrectFullAnswerSet = new();
     public UnityEvent<int, int, int, bool> UIM_UpdateUIForIncorrectFullAnswerSet = new();
 
     #endregion
@@ -228,7 +228,11 @@ public class Calendar_UIManager : MonoBehaviour
             }
         });
 
-        UIM_SetupNextQuestion.AddListener(() => { SetupNewQuestion(); });
+        UIM_SetupNextQuestion.AddListener(() =>
+        {
+            SubmitBtn.interactable = true;
+            SetupNewQuestion();
+        });
 
         UIM_UpdateUIForCorrectAnswer.AddListener(() =>
         {
@@ -251,6 +255,7 @@ public class Calendar_UIManager : MonoBehaviour
                 SubmitBtn.interactable = true;
                 IncorrectResultPanel.SetActive(false);
                 LivesImages[count].color = Color.white;
+                _currQuesUI.InputField.text = "";
 
                 if (count <= 0)
                     _gameManager.GM_OnFullAnswerSetIncorrect?.Invoke();
@@ -258,8 +263,10 @@ public class Calendar_UIManager : MonoBehaviour
         });
 
         UIM_UpdateUIForCorrectFullAnswerSet.AddListener(
-            (int corrAnsCount, int questionsCount, int livesCount, bool continueGame) =>
+            (Vector3 progress, int livesCount, bool continueGame) =>
             {
+                SubmitBtn.interactable = false;
+
                 AnswerSetResultPanel.SetActive(true);
                 AnswerSetResultPanelText.text = _correctSetString + ((_currQuesData.SmallestNum + 8) * 9).ToString();
 
@@ -267,7 +274,7 @@ public class Calendar_UIManager : MonoBehaviour
                 {
                     _progressBarCoroutine =
                         StartCoroutine(ProgressBarAnimIncrease(ProgressBar.value,
-                            (float)corrAnsCount / questionsCount));
+                            (float)progress.x / progress.z));
 
                     AnswerSetResultPanel.SetActive(false);
 
@@ -279,24 +286,28 @@ public class Calendar_UIManager : MonoBehaviour
                         }
                     }
 
-                    QuesCountText.text = $"Ques: {corrAnsCount}/{questionsCount}";
 
-                    DOVirtual.DelayedCall(_averageAnimDurations * 0.9f, () =>
+                    /*DOVirtual.DelayedCall(_averageAnimDurations * 0.9f, () =>
+                    {*/
+                    if (continueGame)
                     {
-                        if (continueGame)
-                            UIM_SetupNextQuestion?.Invoke();
+                        QuesCountText.text = $"Ques: {progress.y}/{progress.z}";
+                        UIM_SetupNextQuestion?.Invoke();
+                    }
 
-                        else
-                        {
-                            _gameManager.GM_OnGameOver?.Invoke();
-                        }
-                    });
+                    else
+                    {
+                        _gameManager.GM_OnGameOver?.Invoke();
+                    }
+                    //});
                 });
             });
 
         UIM_UpdateUIForIncorrectFullAnswerSet.AddListener(
-            (int corrAnsCount, int questionsCount, int livesCount, bool continueGame) =>
+            (int attemptedAnsCount, int questionsCount, int livesCount, bool continueGame) =>
             {
+                SubmitBtn.interactable = false;
+
                 AnswerSetResultPanel.SetActive(true);
                 AnswerSetResultPanelText.text = _incorrectSetString + ((_currQuesData.SmallestNum + 8) * 9).ToString();
 
@@ -312,10 +323,13 @@ public class Calendar_UIManager : MonoBehaviour
                         }
                     }
 
-                    QuesCountText.text = $"Ques: {corrAnsCount}/{questionsCount}";
 
                     if (continueGame)
+                    {
+                        QuesCountText.text = $"Ques: {attemptedAnsCount}/{questionsCount}";
+
                         UIM_SetupNextQuestion?.Invoke();
+                    }
 
                     else
                     {
@@ -347,6 +361,8 @@ public class Calendar_UIManager : MonoBehaviour
 
         QuesSurroundImage.transform.SetParent(_currQuesData.ContainerTransform);
         QuesSurroundImage.transform.localPosition = Vector3.zero;
+
+        _currQuesUI = GetQuestionBoxPerState();
 
         _currQuesState = CurrentQuesState.FindStage;
         SetActiveQuestionBoxPerState();
@@ -392,21 +408,21 @@ public class Calendar_UIManager : MonoBehaviour
 
     private void UpdateQuestion()
     {
-        Calendar_QuesUI oldSet = GetQuestionBoxPerState();
-        oldSet.HeadingText.transform.parent.gameObject.SetActive(false);
+        _currQuesUI = GetQuestionBoxPerState();
+        _currQuesUI.HeadingText.transform.parent.gameObject.SetActive(false);
 
         _currQuesState++;
         SetActiveQuestionBoxPerState();
 
         if (_currQuesState == CurrentQuesState.AddStage)
         {
-            Calendar_QuesUI newSet = GetQuestionBoxPerState();
-            newSet.HeadingText.text = "Add 8 to " + _currQuesData.SmallestNum + " =";
+            _currQuesUI = GetQuestionBoxPerState();
+            _currQuesUI.HeadingText.text = "Add 8 to " + _currQuesData.SmallestNum + " =";
         }
         else
         {
-            Calendar_QuesUI newSet = GetQuestionBoxPerState();
-            newSet.HeadingText.text = "Multiply " + (_currQuesData.SmallestNum + 8) + " by 9 =";
+            _currQuesUI = GetQuestionBoxPerState();
+            _currQuesUI.HeadingText.text = "Multiply " + (_currQuesData.SmallestNum + 8) + " by 9 =";
         }
     }
 

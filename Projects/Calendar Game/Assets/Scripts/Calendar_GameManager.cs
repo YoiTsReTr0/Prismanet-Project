@@ -69,8 +69,10 @@ public class Calendar_GameManager : MonoBehaviour
             _corrAnsCount++;
             _currLives = LivesPerQues;
 
-            bool continueGame = _attemptedAnsCount >= QuestionsCount ? false : true;
-            _uiManager.UIM_UpdateUIForCorrectFullAnswerSet?.Invoke(_corrAnsCount, QuestionsCount, _currLives,
+            bool continueGame = _attemptedAnsCount < QuestionsCount;
+
+            _uiManager.UIM_UpdateUIForCorrectFullAnswerSet?.Invoke(
+                new(_corrAnsCount, _attemptedAnsCount, QuestionsCount), _currLives,
                 continueGame);
         });
         GM_OnFullAnswerSetIncorrect.AddListener(() =>
@@ -79,7 +81,7 @@ public class Calendar_GameManager : MonoBehaviour
             _currLives = LivesPerQues;
 
             bool continueGame = _attemptedAnsCount >= QuestionsCount ? false : true;
-            _uiManager.UIM_UpdateUIForIncorrectFullAnswerSet?.Invoke(_corrAnsCount, QuestionsCount, _currLives,
+            _uiManager.UIM_UpdateUIForIncorrectFullAnswerSet?.Invoke(_attemptedAnsCount, QuestionsCount, _currLives,
                 continueGame);
         });
 
