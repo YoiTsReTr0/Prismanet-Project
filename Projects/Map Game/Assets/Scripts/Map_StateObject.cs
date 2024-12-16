@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.Serialization;
 using UnityEngine.UI;
@@ -11,7 +12,8 @@ public class Map_StateObject : MonoBehaviour
 
 
     public string StateName;
-    public Image SelectedImage;
+    public GameObject FlagImage;
+    public TextMeshProUGUI FlagText;
 
     public bool IsSelected
     {
@@ -20,7 +22,7 @@ public class Map_StateObject : MonoBehaviour
         set
         {
             isSelected = value;
-            SelectedImage.GetComponent<Animator>().SetBool("isSelected", value);
+            FlagImage.GetComponent<Animator>().SetBool("isSelected", value);
         }
     }
 
@@ -31,6 +33,8 @@ public class Map_StateObject : MonoBehaviour
         {
             image.alphaHitTestMinimumThreshold = 0.1f; // Set alpha threshold
         }
+
+        FlagText = FlagImage.transform.GetChild(0).GetChild(0).GetComponent<TextMeshProUGUI>();
     }
 }
 

@@ -119,6 +119,6 @@ public class Map_GameManager : MonoBehaviour
             }
         }
 
-        DOVirtual.DelayedCall(1, () => { GM_OnGameStart?.Invoke(); });
+        DOVirtual.DelayedCall(0.1f, () => { GM_OnGameStart?.Invoke(); });
     }
 }

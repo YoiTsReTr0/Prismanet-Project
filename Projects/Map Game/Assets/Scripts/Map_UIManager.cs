@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using DG.Tweening;
 using TMPro;
 using UnityEngine;
@@ -23,6 +24,10 @@ public class Map_UIManager : MonoBehaviour
 
     private QuestionStateObjectSet _answerStates = new();
     private List<Map_StateObject> _selectedStates = new();
+    private List<Map_StateObject> _absentStates = new();
+    private List<Map_StateObject> _wrongSelectedStates = new();
+    private List<Map_IndexObject> _indexObjList = new();
+
     private Tween _flagTween;
 
     #endregion
@@ -55,9 +60,10 @@ public class Map_UIManager : MonoBehaviour
 
     [SerializeField] private GameObject CorrectResultPanel;
     [SerializeField] private GameObject IncorrectResultPanel;
-
+    [SerializeField] private Transform IndexParent;
 
     [SerializeField] private Button SubmitBtn;
+    [SerializeField] private GameObject PlayPauseBtnParent;
 
     #endregion
 
@@ -74,6 +80,14 @@ public class Map_UIManager : MonoBehaviour
 
     [Header("Misc Area")] [SerializeField] private Color AchievedStarColor;
     [SerializeField] private Color StateDeselectedColor;
+    [SerializeField] private Color MapColorOnSelect;
+    [SerializeField] private Color MapColorOnShowAns;
+    [SerializeField] private Color MapTextColorOnSelect;
+    [SerializeField] private Color MapTextColorOnShowAns;
+
+    [Space(35), SerializeField] private GameObject StatesParent;
+    [SerializeField] private GameObject FlagsParent;
+    [Space(35), SerializeField] private Map_IndexObject IndexObjPrefab;
 
     #endregion
 
@@ -116,7 +130,7 @@ public class Map_UIManager : MonoBehaviour
         return stars;
     }
 
-    private bool AllStatePresent()
+    /*private bool AllStatePresent()
     {
         foreach (var answerState in _answerStates.AnswerStatesList)
         {
@@ -145,6 +159,54 @@ public class Map_UIManager : MonoBehaviour
         }
 
         return true;
+    }*/
+
+    private bool AllStatePresent()
+    {
+        _absentStates.Clear();
+        _wrongSelectedStates.Clear();
+
+        // Step 1: Find Absent States
+        foreach (var answerState in _answerStates.AnswerStatesList)
+        {
+            if (!_selectedStates.Contains(answerState))
+            {
+                _absentStates.Add(answerState);
+            }
+        }
+
+        foreach (var expandableSet in _answerStates.ExpandableStatesSetList)
+        {
+            bool hasAtLeastOne = false;
+            foreach (var state in expandableSet.Set)
+            {
+                if (_selectedStates.Contains(state))
+                {
+                    hasAtLeastOne = true;
+                    break;
+                }
+            }
+
+            if (!hasAtLeastOne)
+            {
+                _absentStates.Add(expandableSet.Set[0]); // Add the first state as a representative
+            }
+        }
+
+        foreach (var selectedState in _selectedStates)
+        {
+            bool isInAnswerStates = _answerStates.AnswerStatesList.Contains(selectedState);
+
+            bool isInExpandableStates = _answerStates.ExpandableStatesSetList
+                .Any(expandableSet => expandableSet.Set.Contains(selectedState));
+
+            if (!isInAnswerStates && !isInExpandableStates)
+            {
+                _wrongSelectedStates.Add(selectedState);
+            }
+        }
+
+        return _absentStates.Count + _wrongSelectedStates.Count < 1;
     }
 
     #endregion
@@ -171,8 +233,10 @@ public class Map_UIManager : MonoBehaviour
 
         UIM_SetupNextQuestion.AddListener((QuestionStateObjectSet ques, int attemptedQues) =>
         {
+            SubmitBtn.interactable = true;
+
             SetupNewQuestion(ques);
-            QuesCountText.text = $"Ques: {attemptedQues}/{_quesCount}";
+            QuesCountText.text = $"Ques: {attemptedQues + 1}/{_quesCount}";
         });
 
         UIM_UpdateUIForCorrectAnswer.AddListener((QuestionStateObjectSet ques, int attemptedQues, int correctAns) =>
@@ -200,22 +264,30 @@ public class Map_UIManager : MonoBehaviour
 
         UIM_UpdateUIForIncorrectAnswer.AddListener((QuestionStateObjectSet ques, int attemptedQues) =>
         {
-            ResetSelectedStatesOnAnswer();
             IncorrectResultPanel.SetActive(true);
             SubmitBtn.interactable = false;
             DOVirtual.DelayedCall(_averageAnimDurations * 0.9f, () =>
             {
-                SubmitBtn.interactable = true;
+                PlayPauseBtnParent.SetActive(true);
+
                 IncorrectResultPanel.SetActive(false);
-                //LivesImages[currLives].color = Color.white;
 
-                if (attemptedQues >= _quesCount)
-                    _gameManager.GM_OnGameOver?.Invoke();
+                AddMissingStatesOnFail();
 
-                else
+                DOVirtual.DelayedCall(_averageAnimDurations * 2f, () =>
                 {
-                    UIM_SetupNextQuestion?.Invoke(ques, attemptedQues);
-                }
+                    PlayPauseBtnParent.SetActive(false);
+
+                    ResetSelectedStatesOnAnswer();
+
+                    if (attemptedQues >= _quesCount)
+                        _gameManager.GM_OnGameOver?.Invoke();
+
+                    else
+                    {
+                        UIM_SetupNextQuestion?.Invoke(ques, attemptedQues);
+                    }
+                });
             });
         });
 
@@ -228,7 +300,11 @@ public class Map_UIManager : MonoBehaviour
             {
                 _selectedStates.Add(obj);
 
+                SetFlagColor(obj, _selectedStates.Count, true);
+
                 StateObjectSelectionAction(true, obj);
+
+                SetupIndex(obj, _selectedStates.Count, true);
             }
 
             else
@@ -236,6 +312,9 @@ public class Map_UIManager : MonoBehaviour
                 _selectedStates.Remove(obj);
 
                 StateObjectSelectionAction(false, obj);
+                SetupIndex(obj, int.Parse(obj.FlagText.text), false);
+
+                ReassignFlagNumbers();
             }
         });
 
@@ -244,6 +323,8 @@ public class Map_UIManager : MonoBehaviour
             GameOverPanel.SetActive(true);
             for (int i = 0; i < GetStarsCount((float)score / maxScore); i++)
                 AchievedStarsImages[i].color = AchievedStarColor;
+
+            //QuesCountText.text = $"Ques: {maxScore}/{_quesCount}";
         });
 
         SubmitBtn.onClick.AddListener(CheckAnswer);
@@ -261,10 +342,12 @@ public class Map_UIManager : MonoBehaviour
         }
     }
 
+    #region Game Core Mechanics
+
     private void GameSetup(int quesCount)
     {
         _quesCount = quesCount;
-        QuesCountText.text = "Ques: 0/" + quesCount;
+        QuesCountText.text = "Ques: 1/" + quesCount;
 
         /*for (int i = 0; i < LivesPerQues; i++)
         {
@@ -272,13 +355,19 @@ public class Map_UIManager : MonoBehaviour
         }*/
     }
 
-
     private void SetupNewQuestion(QuestionStateObjectSet ques)
     {
         _answerStates = ques;
 
         FromStateText.text = ques.AnswerStatesList[0].StateName;
         ToStateText.text = ques.AnswerStatesList[^1].StateName;
+
+        for (int i = 0; i < _indexObjList.Count; i++)
+        {
+            Destroy(_indexObjList[i].gameObject);
+        }
+
+        _indexObjList.Clear();
     }
 
     /// <summary>
@@ -302,15 +391,15 @@ public class Map_UIManager : MonoBehaviour
     {
         if (selected)
         {
-            obj.SelectedImage.gameObject.SetActive(true);
+            obj.FlagImage.gameObject.SetActive(true);
 
-            float yVal = obj.SelectedImage.rectTransform.localPosition.y;
-            Vector3 position = obj.SelectedImage.rectTransform.localPosition;
+            float yVal = 0;
+            Vector3 position = new(0, 0, 0);
 
             position.y = yVal + 120;
-            obj.SelectedImage.rectTransform.localPosition = position;
+            obj.FlagImage.transform.GetChild(0).GetComponent<RectTransform>().localPosition = position;
 
-            _flagTween = obj.SelectedImage.rectTransform
+            _flagTween = obj.FlagImage.transform.GetChild(0).GetComponent<RectTransform>()
                 .DOLocalMoveY(yVal, _averageAnimDurations * 0.29f)
                 .SetEase(Ease.InOutQuad).OnComplete(() => { _flagTween = null; });
 
@@ -322,23 +411,124 @@ public class Map_UIManager : MonoBehaviour
         {
             obj.GetComponent<Image>().color = StateDeselectedColor;
 
-            float yVal = obj.SelectedImage.rectTransform.localPosition.y;
+            float yVal = obj.FlagImage.transform.GetChild(0).GetComponent<RectTransform>().localPosition.y;
 
 
-            _flagTween = obj.SelectedImage.rectTransform
+            _flagTween = obj.FlagImage.transform.GetChild(0).GetComponent<RectTransform>()
                 .DOLocalMoveY(yVal + 120, _averageAnimDurations * 0.29f)
                 .SetEase(Ease.InOutQuad).OnComplete(() =>
                 {
-                    Vector3 position = obj.SelectedImage.rectTransform.localPosition;
+                    Vector3 position = obj.FlagImage.transform.GetChild(0).GetComponent<RectTransform>()
+                        .localPosition;
 
                     position.y = yVal;
-                    obj.SelectedImage.rectTransform.localPosition = position;
+                    obj.FlagImage.transform.GetChild(0).GetComponent<RectTransform>().localPosition = position;
                     _flagTween = null;
-                    obj.SelectedImage.gameObject.SetActive(false);
+                    obj.FlagImage.gameObject.SetActive(false);
                 });
         }
     }
 
+    private void AddMissingStatesOnFail()
+    {
+        for (int i = 0; i < _absentStates.Count; i++)
+        {
+            _selectedStates.Add(_absentStates[i]);
+
+            SetFlagColor(_absentStates[i], _selectedStates.Count, false);
+            StateObjectSelectionAction(true, _absentStates[i]);
+            SetupIndex(_absentStates[i], _selectedStates.Count, true);
+        }
+
+        for (int i = 0; i < _wrongSelectedStates.Count; i++)
+        {
+            _selectedStates.Remove(_wrongSelectedStates[i]);
+
+            SetFlagColor(_wrongSelectedStates[i], int.Parse(_wrongSelectedStates[i].FlagText.text), false);
+
+            StateObjectSelectionAction(false, _wrongSelectedStates[i]);
+
+            SetupIndex(_wrongSelectedStates[i],
+                int.Parse(_wrongSelectedStates[i].FlagText.text), false);
+        }
+
+        ReassignFlagNumbers();
+    }
+
+    #endregion
+
+    #region Helper Mechanics
+
+    private void SetFlagColor(Map_StateObject obj, int flagNum, bool selecting = true)
+    {
+        Image img = obj.FlagImage.transform.GetChild(0).GetComponent<Image>();
+        TextMeshProUGUI text = obj.FlagText;
+
+        if (selecting)
+        {
+            img.color = MapColorOnSelect;
+            text.text = flagNum.ToString();
+            text.color = MapTextColorOnSelect;
+        }
+
+        else
+        {
+            img.color = MapColorOnShowAns;
+            text.text = flagNum.ToString();
+            text.color = MapTextColorOnShowAns;
+        }
+    }
+
+    private void SetupIndex(Map_StateObject obj, int num, bool adding)
+    {
+        if (adding)
+        {
+            Map_IndexObject indexObj = Instantiate(IndexObjPrefab, IndexParent, false);
+            _indexObjList.Add(indexObj);
+
+            indexObj.StateData = obj;
+            indexObj.StateName.text = obj.StateName;
+            indexObj.IndexNumText.text = num.ToString();
+        }
+
+        else
+        {
+            Map_IndexObject indexObjToRemove = _indexObjList.Find(index => index.StateData == obj);
+
+            if (indexObjToRemove != null)
+            {
+                _indexObjList.Remove(indexObjToRemove);
+                Destroy(indexObjToRemove.gameObject);
+            }
+        }
+    }
+
+    private void SetupIndex(Map_StateObject obj, int num)
+    {
+        Map_IndexObject indexObj = _indexObjList.Find(index => index.StateData == obj);
+        indexObj.IndexNumText.text = num.ToString();
+    }
+
+    private void ReassignFlagNumbers()
+    {
+        for (int i = 0; i < _selectedStates.Count; i++)
+        {
+            _selectedStates[i].FlagText.text = (i + 1).ToString();
+            SetupIndex(_selectedStates[i], i + 1);
+        }
+    }
+
+
+    public void AllDOTweenPausePlay(bool pause)
+    {
+        if (pause)
+            DOTween.PauseAll();
+
+        else
+            DOTween.PlayAll();
+    }
+
+    #endregion
 
     #region UI Anims
 
@@ -390,6 +580,24 @@ public class Map_UIManager : MonoBehaviour
                 () =>
                     obj.transform.DOScale(OgSize1, _averageAnimDurations / 16));
     }
+
+    #endregion
+
+    #region Debug Area
+
+    /*[ContextMenu("Fill Flags")]
+    private void FillImageDataInStateObjects()
+    {
+        for (int i = 0; i < StatesParent.transform.childCount; i++)
+        {
+            StatesParent.transform.GetChild(i).GetComponent<Map_StateObject>().FlagImage =
+                FlagsParent.transform.GetChild(i).gameObject;
+
+            UnityEditor.EditorUtility.SetDirty(StatesParent.transform.GetChild(i).GetComponent<Map_StateObject>());
+        }
+
+        UnityEditor.EditorUtility.SetDirty(gameObject);
+    }*/
 
     #endregion
 }
