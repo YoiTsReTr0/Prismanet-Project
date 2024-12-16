@@ -48,7 +48,7 @@ namespace QuizGame.LevelPlay
         #region Helper Functions
 
         /// <summary>
-        /// Generates a new question with answer in Vector3 format and updates the local storage variables
+        /// Generates a new question with answer in Vector2 format and updates the local storage variables
         /// </summary>
         /// <returns></returns>
         private Vector2 GetNewQuestion()
@@ -121,7 +121,7 @@ namespace QuizGame.LevelPlay
                 Debug.Log("Game Start");
                 SetupNewQuestion(); // Generate 1st question
                 _uiManager.UIM_OnGameStart?.Invoke(_correctAnsRewardCoins, _attemptedQuestions, _totalQuestions);
-                _uiManager.UIM_SetupNextQuestion?.Invoke(_currentQuestion, _currentChoices);
+                _uiManager.UIM_SetupNextQuestion?.Invoke(_currentQuestion, _currentChoices, _attemptedQuestions);
             });
 
             GM_OnAnswerCorrect.AddListener(() =>
@@ -135,7 +135,7 @@ namespace QuizGame.LevelPlay
                 if (_attemptedQuestions < _totalQuestions)
                 {
                     SetupNewQuestion();
-                    _uiManager.UIM_SetupNextQuestion?.Invoke(_currentQuestion, _currentChoices);
+                    _uiManager.UIM_SetupNextQuestion?.Invoke(_currentQuestion, _currentChoices, _attemptedQuestions);
                 }
 
                 else if (_attemptedQuestions >= _totalQuestions)
@@ -154,7 +154,7 @@ namespace QuizGame.LevelPlay
                 if (_attemptedQuestions < _totalQuestions)
                 {
                     SetupNewQuestion();
-                    _uiManager.UIM_SetupNextQuestion?.Invoke(_currentQuestion, _currentChoices);
+                    _uiManager.UIM_SetupNextQuestion?.Invoke(_currentQuestion, _currentChoices, _attemptedQuestions);
                 }
 
                 else if (_attemptedQuestions >= _totalQuestions)

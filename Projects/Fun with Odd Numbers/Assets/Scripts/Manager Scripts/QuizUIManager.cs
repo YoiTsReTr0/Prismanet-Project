@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using DG.Tweening;
 using TMPro;
 using Unity.VisualScripting;
@@ -26,6 +27,7 @@ namespace QuizGame.LevelPlay
         private float _averageAnimDurations = 2f;
         private int _currStars = 0;
         private int _correctAnsRewardCoins = 0;
+        private int _quesCount = 0;
 
         #endregion
 
@@ -58,6 +60,8 @@ namespace QuizGame.LevelPlay
         [Header("Game Over Area")] [SerializeField]
         private GameObject GameOverPanel;
 
+        [SerializeField] private TextMeshProUGUI GameOverText;
+
         [SerializeField] private Image[] AchievedStarsImages;
 
         [Header("Misc Area")] [SerializeField] private Color AchievedStarColor;
@@ -69,7 +73,9 @@ namespace QuizGame.LevelPlay
         [Header("Events")]
         public UnityEvent<int, int, int> UIM_OnGameStart = new(); // Called from Game Manager when game starts
 
-        public UnityEvent<Vector2, int[]> UIM_SetupNextQuestion = new(); // Called from Game Manager when game starts
+        public UnityEvent<Vector2, int[], int>
+            UIM_SetupNextQuestion = new(); // Called from Game Manager when game starts
+
         public UnityEvent<int, int> UIM_GameOver = new(); // Called from Game Manager when game starts
 
         public UnityEvent<int, int, int, int>
@@ -150,6 +156,19 @@ namespace QuizGame.LevelPlay
                         obj.transform.DOScale(OgSize1, _averageAnimDurations / 16));
         }
 
+        public string GenerateOddSequence(int n)
+        {
+            if (n <= 0) return string.Empty;
+
+            List<int> oddNumbers = new List<int>();
+            for (int i = 0; i < n; i++)
+            {
+                oddNumbers.Add(2 * i + 1);
+            }
+
+            return string.Join(" + ", oddNumbers);
+        }
+
         #endregion
 
         private void Awake()
@@ -172,7 +191,8 @@ namespace QuizGame.LevelPlay
                 ProgressBar.value = 0;
                 _correctAnsRewardCoins = rewardCoins;
 
-                HeadingQuesCountText.text = $"Ques: {attemptedQues}/{totalQues}";
+                //HeadingQuesCountText.text = $"Ques: 1/{totalQues}";
+                _quesCount = totalQues;
             });
 
             UIM_SetupNextQuestion.AddListener(SetupQuestion);
@@ -188,29 +208,14 @@ namespace QuizGame.LevelPlay
         /// </summary>
         /// <param name="ques">Question with answer in the Vector3 format</param>
         /// <param name="choices">Array of choices in the form of integer</param>
-        private void SetupQuestion(Vector2 ques, int[] choices)
+        private void SetupQuestion(Vector2 ques, int[] choices, int attemptedQues)
         {
             // Write the question
 
-            switch (ques.x)
-            {
-                case 2:
-                    QuestionText.text =
-                        $"<u><color=#007aff>1 + 3 = ? </color></u> \n\n or \n\n <u><color=#007aff>{ques.x} x {ques.x} = ?</color></u>";
-                    break;
-                case 3:
-                    QuestionText.text =
-                        $"<u><color=#007aff>1 + 3 + 5= ? </color></u> \n\n or \n\n <u><color=#007aff>{ques.x} x {ques.x} = ?</color></u>";
-                    break;
-                case 4:
-                    QuestionText.text =
-                        $"<u><color=#007aff>1 + 3 + 5 + 7 = ? </color></u> \n\n or \n\n <u><color=#007aff>{ques.x} x {ques.x} = ?</color></u>";
-                    break;
-                case > 4:
-                    QuestionText.text =
-                        $"<u><color=#007aff>1 + 3 + . . . + {(ques.x * 2) - 3} + {(ques.x * 2) - 1} = ? </color></u> \n\n or \n\n <u><color=#007aff>{ques.x} x {ques.x} = ?</color></u>";
-                    break;
-            }
+            string quesString = GenerateOddSequence((int)ques.x);
+            QuestionText.text = $"<color=#007aff>{quesString} </color>";
+
+            HeadingQuesCountText.text = $"Ques: {attemptedQues + 1}/{_quesCount}";
 
 
             // Setup buttons
@@ -268,8 +273,6 @@ namespace QuizGame.LevelPlay
                 StartCoroutine(ProgressBarAnimIncrease(ProgressBar.value, (float)correctAns / totalQues));
 
             CoinsText.text = userCoins.ToString();
-
-            HeadingQuesCountText.text = $"Ques: {attemptedQues}/{totalQues}";
         }
 
 
@@ -287,7 +290,11 @@ namespace QuizGame.LevelPlay
                 _audioManger.PlaySFXOneShotHigh(_audioManger.GameOverClip);
             });
 
-            for (int i = 0; i < GetStarsCount((float)correctAns, totalQues); i++)
+            int stars = GetStarsCount((float)correctAns, totalQues);
+
+            GameOverText.text = stars < 1 ? "Try Harder next Time" : "Well Done";
+
+            for (int i = 0; i < stars; i++)
                 AchievedStarsImages[i].color = AchievedStarColor;
         }
 
