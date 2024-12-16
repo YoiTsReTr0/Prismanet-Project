@@ -108,7 +108,7 @@ namespace ColorBigGame.Main
                     GM_OnGameOver?.Invoke();
 
                 else
-                    _UIManager.UIM_SetupNextQuestion?.Invoke(GetQuestion(1, 10));
+                    _UIManager.UIM_SetupNextQuestion?.Invoke(GetQuestion(1, 10), _attemptedAnswers);
 
                 _UIManager.UIM_UpdateUIForCorrectAnswer?.Invoke(_score);
             });
@@ -120,7 +120,7 @@ namespace ColorBigGame.Main
                     GM_OnGameOver?.Invoke();
 
                 else
-                    _UIManager.UIM_SetupNextQuestion?.Invoke(GetQuestion(1, 10));
+                    _UIManager.UIM_SetupNextQuestion?.Invoke(GetQuestion(1, 10), _attemptedAnswers);
             });
 
 

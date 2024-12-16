@@ -68,7 +68,7 @@ namespace ColorBigGame.Main
         [Header("Events")]
         public UnityEvent<int[], int> UIM_OnGameStart = new(); // Called from Game Manager when game starts
 
-        public UnityEvent<int[]> UIM_SetupNextQuestion = new(); // Called from Game Manager when game starts
+        public UnityEvent<int[], int> UIM_SetupNextQuestion = new(); // Called from Game Manager when game starts
         public UnityEvent<int, int> UIM_GameOver = new(); // Called from Game Manager when game starts
 
         public UnityEvent<int> UIM_UpdateUIForCorrectAnswer = new();
@@ -157,34 +157,43 @@ namespace ColorBigGame.Main
             UIM_OnGameStart.AddListener((int[] ques, int count) =>
             {
                 _quesTotalCount = count;
-                ScoreText.text = $"Score: 0/{_quesTotalCount} ";
+                ScoreText.text = $"Score: 1/{_quesTotalCount} ";
                 SetupQuestion(ques);
             });
-            UIM_SetupNextQuestion.AddListener((ques) => { StartCoroutine(DelayedSetupQuestion(ques)); });
+            UIM_SetupNextQuestion.AddListener((ques, attemptedQues) =>
+            {
+                StartCoroutine(DelayedSetupQuestion(ques, attemptedQues + 1));
+            });
 
             UIM_UpdateUIForCorrectAnswer.AddListener(_score => CorrectAnsUpdateUI(_score));
 
             UIM_GameOver.AddListener((int score, int maxScore) =>
             {
-                StartCoroutine(DelayedGameOver(score, maxScore));
+                int stars = GetStarsCount((float)score / maxScore);
+
+                StartCoroutine(DelayedGameOver(stars));
+
                 _gameOver = true;
-                for (int i = 0; i < GetStarsCount((float)score / maxScore); i++)
+
+                for (int i = 0; i < stars; i++)
                     AchievedStarsImages[i].color = AchievedStarColor;
             });
         }
 
-        private IEnumerator DelayedSetupQuestion(int[] array)
+        private IEnumerator DelayedSetupQuestion(int[] array, int attemptedQues)
         {
-            yield return new WaitForSeconds(3.5f);
+            yield return new WaitForSeconds(2f);
+            ScoreText.text = $"Ques: {attemptedQues}/{_quesTotalCount} ";
 
             SetupQuestion(array);
         }
 
-        private IEnumerator DelayedGameOver(int score, int maxScore)
+        private IEnumerator DelayedGameOver(int score)
         {
             yield return new WaitForSeconds(3.5f);
 
-            InitGameOver(score, maxScore);
+            GameOverPanel.SetActive(true);
+            GameOverResultText.text = score < 1 ? "Try Harder Next Time" : "Well Done";
         }
 
         private IEnumerator ProgressBarAnimIncrease(float initialVal, float finalVal)
@@ -286,16 +295,8 @@ namespace ColorBigGame.Main
 
         private void CorrectAnsUpdateUI(int correctAns)
         {
-            ScoreText.text = $"Score: {correctAns}/{_quesTotalCount} ";
-            //SmoothChange(ProgressBar.value, (float)score / (float)_quesTotalCount, AvgAnimTime);
             _progressBarCoroutine =
                 StartCoroutine(ProgressBarAnimIncrease(ProgressBar.value, (float)correctAns / _quesTotalCount));
-        }
-
-        private void InitGameOver(int score, int maxScore)
-        {
-            GameOverPanel.SetActive(true);
-            GameOverResultText.text = $"{score}/{maxScore}";
         }
 
         public void TempSetColor(string hexCode)
