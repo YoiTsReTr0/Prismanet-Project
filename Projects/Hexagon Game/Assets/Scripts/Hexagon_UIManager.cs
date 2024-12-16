@@ -16,7 +16,17 @@ public class Hexagon_UIManager : MonoBehaviour
 
     private Hexagon_GameManager _gameManager;
 
+    private Coroutine _progressBarCoroutine;
     private float _averageAnimDurations = 2f;
+    private int _currStars = 0;
+
+    private bool _isSingleQues = false;
+
+    private int _currHiddenCorrAnsCount;
+    private int _hiddenAnsCount = 6;
+
+    private int _hexLowerRange;
+    private int _hexHigherRange;
 
     #endregion
 
@@ -27,6 +37,8 @@ public class Hexagon_UIManager : MonoBehaviour
     [Header("Header Area")] [SerializeField]
     private Image[] LivesImages;
 
+    [SerializeField] private TextMeshProUGUI QuesCountText;
+
     #endregion
 
     #region Main Game Area
@@ -35,10 +47,17 @@ public class Hexagon_UIManager : MonoBehaviour
     private Hexagon_HexagonObject[] CircleObjects;
 
     [SerializeField] private Hexagon_HexagonObject[] SquareObjects;
-    [Space(20), SerializeField] private GameObject CorrectResultPanel;
 
+    [Space(20), SerializeField] private GameObject CorrectResultPanel;
     [SerializeField] private GameObject IncorrectResultPanel;
+
+    [SerializeField] private Slider ProgressBar;
+    [SerializeField] private GameObject[] ProgressBarStars;
     [SerializeField] private Button SubmitBtn;
+
+
+    [Space(20), SerializeField] private GameObject AnswerSetResultPanel;
+    [SerializeField] private TextMeshProUGUI AnswerSetResultPanelText;
 
     #endregion
 
@@ -63,15 +82,62 @@ public class Hexagon_UIManager : MonoBehaviour
 
     #region Unity Events
 
-    public UnityEvent<int, int, int> UIM_OnGameStart = new();
+    public UnityEvent<Vector3, int, int, bool> UIM_OnGameStart = new();
+    public UnityEvent<int> UIM_SetupNextQuestion = new();
 
-    public UnityEvent UIM_UpdateUIForCorrectAnswer = new();
+    public UnityEvent<Vector3, bool> UIM_UpdateUIForCorrectAnswer = new();
     public UnityEvent<int> UIM_UpdateUIForIncorrectAnswer = new();
+    public UnityEvent<int, int, int, bool> UIM_UpdateUIForIncorrectFullAnswerSet = new();
     public UnityEvent<int, int> UIM_GameOver = new();
 
     #endregion
 
     #region Pre-requisites
+
+    private bool GetAnswersResult()
+    {
+        if (!_isSingleQues)
+        {
+            for (int i = 0; i < CircleObjects.Length; i++)
+            {
+                if (CircleObjects[i].PreDefinedNumText.text != CircleObjects[i].InputField.text)
+                {
+                    return false;
+                }
+
+
+                if (SquareObjects[i].PreDefinedNumText.text != SquareObjects[i].InputField.text)
+                {
+                    return false;
+                }
+            }
+        }
+        else
+        {
+            _currHiddenCorrAnsCount = 0;
+
+            for (int i = 0; i < CircleObjects.Length; i++)
+            {
+                if (!CircleObjects[i].PreDefinedNumText.gameObject.activeSelf &&
+                    CircleObjects[i].PreDefinedNumText.text == CircleObjects[i].InputField.text)
+                {
+                    _currHiddenCorrAnsCount++;
+                }
+
+
+                if (!SquareObjects[i].PreDefinedNumText.gameObject.activeSelf &&
+                    SquareObjects[i].PreDefinedNumText.text == SquareObjects[i].InputField.text)
+                {
+                    _currHiddenCorrAnsCount++;
+                }
+            }
+
+            if (_hiddenAnsCount > _currHiddenCorrAnsCount)
+                return false;
+        }
+
+        return true;
+    }
 
     private int GetStarsCount(float quotient)
     {
@@ -96,6 +162,15 @@ public class Hexagon_UIManager : MonoBehaviour
         return stars;
     }
 
+    private void SetAllHexInputFieldsInteractable(bool interactable)
+    {
+        for (int i = 0; i < CircleObjects.Length; i++)
+        {
+            CircleObjects[i].InputField.interactable = interactable;
+            SquareObjects[i].InputField.interactable = interactable;
+        }
+    }
+
     #endregion
 
     private void Awake()
@@ -111,26 +186,75 @@ public class Hexagon_UIManager : MonoBehaviour
         _gameManager = Hexagon_GameManager.instance;
 
 
-        UIM_OnGameStart.AddListener((int livesCount, int lowerRange, int higherRange) =>
-        {
-            GameSetup(lowerRange, higherRange);
+        UIM_OnGameStart.AddListener(
+            (Vector3 dataSet1, int hiddenAnsCount, int quesCount, bool isSingleQues) =>
+            {
+                _isSingleQues = isSingleQues;
+                _hiddenAnsCount = hiddenAnsCount;
 
+                _hexLowerRange = (int)dataSet1.y;
+                _hexHigherRange = (int)dataSet1.z;
+
+                QuesCountText.gameObject.SetActive(!isSingleQues);
+                QuesCountText.text = $"Ques: 0/{quesCount}";
+
+
+                for (int i = 0; i < dataSet1.x; i++)
+                {
+                    LivesImages[i].gameObject.SetActive(true);
+                }
+            });
+
+        UIM_SetupNextQuestion.AddListener((int livesCount) =>
+        {
             for (int i = 0; i < livesCount; i++)
             {
-                LivesImages[i].gameObject.SetActive(true);
+                if (ColorUtility.TryParseHtmlString("#DA3D3D", out Color newColor))
+                {
+                    LivesImages[i].color = newColor;
+                }
             }
+
+            SetAllHexInputFieldsInteractable(true);
+
+            SubmitBtn.interactable = true;
+
+            HexagonQuestionSetup(_hexLowerRange, _hexHigherRange);
         });
 
 
-        UIM_UpdateUIForCorrectAnswer.AddListener(() =>
+        UIM_UpdateUIForCorrectAnswer.AddListener((Vector3 progress, bool continueGame) =>
         {
             CorrectResultPanel.SetActive(true);
             SubmitBtn.interactable = false;
 
+            QuesCountText.text = $"Ques: {progress.y}/{progress.z}";
+
+            _progressBarCoroutine =
+                StartCoroutine(ProgressBarAnimIncrease(ProgressBar.value,
+                    (float)progress.x / progress.z));
+
             DOVirtual.DelayedCall(_averageAnimDurations * 0.9f, () =>
             {
                 CorrectResultPanel.SetActive(false);
-                _gameManager.GM_OnGameOver?.Invoke();
+
+                AnswerSetResultPanel.SetActive(true);
+                AnswerSetResultPanelText.text = "Perfection!!";
+
+                DOVirtual.DelayedCall(_averageAnimDurations * 1.35f, () =>
+                {
+                    AnswerSetResultPanel.SetActive(false);
+
+                    if (_isSingleQues || !continueGame)
+                        _gameManager.GM_OnGameOver?.Invoke();
+
+                    else
+                    {
+                        SubmitBtn.interactable = true;
+
+                        _gameManager.GM_SetupNewQuestion?.Invoke();
+                    }
+                });
             });
         });
 
@@ -146,25 +270,91 @@ public class Hexagon_UIManager : MonoBehaviour
                 SubmitBtn.interactable = true;
 
                 if (count <= 0)
-                    _gameManager.GM_OnGameOver?.Invoke();
+                {
+                    SetAllHexInputFieldsInteractable(false);
+
+                    if (_isSingleQues)
+                    {
+                        SubmitBtn.interactable = false;
+
+
+                        _progressBarCoroutine =
+                            StartCoroutine(ProgressBarAnimIncrease(ProgressBar.value,
+                                (float)_currHiddenCorrAnsCount / _hiddenAnsCount));
+
+                        /*DOVirtual.DelayedCall(_averageAnimDurations * 1.35f,
+                            () => { _gameManager.GM_OnGameOver?.Invoke(); });*/
+                    }
+
+                    _gameManager.GM_OnFullAnswerSetIncorrect?.Invoke();
+                    /*else
+                    {
+                    }*/
+                }
             });
         });
+
+        UIM_UpdateUIForIncorrectFullAnswerSet.AddListener(
+            (int attemptedAnsCount, int questionsCount, int livesCount, bool continueGame) =>
+            {
+                SubmitBtn.interactable = false;
+
+                AnswerSetResultPanel.SetActive(true);
+                AnswerSetResultPanelText.text = "Out Of Lives";
+
+                DOVirtual.DelayedCall(_averageAnimDurations * 1.35f, () =>
+                {
+                    AnswerSetResultPanel.SetActive(false);
+
+                    for (int i = 0; i < livesCount; i++)
+                    {
+                        if (ColorUtility.TryParseHtmlString("#DA3D3D", out Color newColor))
+                        {
+                            LivesImages[i].color = newColor;
+                        }
+                    }
+
+
+                    if (continueGame)
+                        _gameManager.GM_SetupNewQuestion?.Invoke();
+
+
+                    else
+                        _gameManager.GM_OnGameOver?.Invoke();
+
+
+                    QuesCountText.text = $"Ques: {attemptedAnsCount}/{questionsCount}";
+                });
+            });
 
 
         UIM_GameOver.AddListener((int score, int maxScore) =>
         {
-            GameOverPanel.SetActive(true);
-            for (int i = 0; i < GetStarsCount((float)score / maxScore); i++)
-                AchievedStarsImages[i].color = AchievedStarColor;
+            SetAllHexInputFieldsInteractable(false);
 
-            if (score <= 0)
+            if (_isSingleQues && score <= 0)
                 GameOverText.text = "Out Of Lives";
+
+            score = _isSingleQues ? _currHiddenCorrAnsCount : score;
+            maxScore = _isSingleQues ? _hiddenAnsCount : maxScore;
+
+
+            GameOverPanel.SetActive(true);
+
+            int finalStars = GetStarsCount((float)score / maxScore);
+
+            if (!_isSingleQues && finalStars == 0)
+                GameOverText.text = "Try Harder Next Time";
+
+
+            for (int i = 0; i < finalStars; i++)
+                AchievedStarsImages[i].color = AchievedStarColor;
         });
 
         SubmitBtn.onClick.AddListener(CheckAnswer);
     }
 
-    private void GameSetup(int lowerRange, int highRange)
+    private void HexagonQuestionSetup(int lowerRange, int highRange)
     {
         GeneratePuzzle(lowerRange, highRange);
 
@@ -172,8 +362,6 @@ public class Hexagon_UIManager : MonoBehaviour
 
         void GeneratePuzzle(int lowerRange, int highRange)
         {
-            int hiddenCount = 6;
-
             for (int i = 0; i < CircleObjects.Length; i++)
             {
                 CircleObjects[i].FinalNumber = Random.Range(lowerRange, highRange);
@@ -189,7 +377,7 @@ public class Hexagon_UIManager : MonoBehaviour
             }
 
             List<int> hideIndices = new List<int>();
-            while (hideIndices.Count < hiddenCount)
+            while (hideIndices.Count < _hiddenAnsCount)
             {
                 int randomIndex = Random.Range(0, 6);
                 if (!hideIndices.Contains(randomIndex))
@@ -242,22 +430,53 @@ public class Hexagon_UIManager : MonoBehaviour
 
     private void CheckAnswer()
     {
-        for (int i = 0; i < CircleObjects.Length; i++)
+        if (!GetAnswersResult())
+            _gameManager.GM_OnAnswerIncorrect?.Invoke();
+
+        else
+            _gameManager.GM_OnAnswerCorrect?.Invoke();
+    }
+
+
+    private IEnumerator ProgressBarAnimIncrease(float initialVal, float finalVal)
+    {
+        float elapsedTime = 0f;
+
+        while (elapsedTime < _averageAnimDurations)
         {
-            if (CircleObjects[i].PreDefinedNumText.text != CircleObjects[i].InputField.text)
+            elapsedTime += Time.deltaTime;
+
+            ProgressBar.value = Mathf.Lerp(initialVal, finalVal, elapsedTime / _averageAnimDurations);
+
+            if (_currStars < GetStarsCount(ProgressBar.value))
             {
-                _gameManager.GM_OnAnswerIncorrect?.Invoke();
-                return;
+                _currStars++;
+                ClaimProgressBarStar(_currStars);
             }
 
-
-            if (SquareObjects[i].PreDefinedNumText.text != SquareObjects[i].InputField.text)
-            {
-                _gameManager.GM_OnAnswerIncorrect?.Invoke();
-                return;
-            }
+            yield return new WaitForEndOfFrame();
         }
 
-        _gameManager.GM_OnAnswerCorrect?.Invoke();
+
+        yield return null;
+
+        void RunGrowAndShrinkAnim(GameObject obj, Color newColor = default, bool useColor = false)
+        {
+            Vector3 OgSize1 = obj.transform.localScale;
+
+            if (useColor)
+                obj.GetComponent<Image>().color = newColor;
+
+            obj.transform.DOScale(OgSize1 + Vector3.one, _averageAnimDurations / 16)
+                .OnComplete(
+                    () =>
+                        obj.transform.DOScale(OgSize1, _averageAnimDurations / 16));
+        }
+
+        void ClaimProgressBarStar(int starNo)
+        {
+            RunGrowAndShrinkAnim(ProgressBarStars[starNo - 1], Color.yellow, true);
+            RunGrowAndShrinkAnim(ProgressBar.handleRect.gameObject);
+        }
     }
 }
