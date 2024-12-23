@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnityEngine.UI;
 
 namespace MainGame.ConnectDots
@@ -10,7 +11,7 @@ namespace MainGame.ConnectDots
     {
         public Button Button;
         public TextMeshProUGUI NumberText;
-        public Image NumberImage;
+        public Image NumBGImage;
         public GameObject DoneImage;
     }
 }

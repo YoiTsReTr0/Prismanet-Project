@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4d0b75c371073c74f95e4f74216ddfd6, type: 3}
-  m_Name: Connect_Level1
+  m_Name: Connect_Level 3
   m_EditorClassIdentifier: 
-  GameCriteriaText: Connect with next number
-  AnswersList: 010000000200000003000000040000000500000006000000070000000800000009000000
+  LivesCount: 2
+  AnswersList: 0d0000000e0000000f00000010000000110000001200000013000000

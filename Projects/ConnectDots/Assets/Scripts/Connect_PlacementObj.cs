@@ -17,5 +17,20 @@ namespace MainGame.ConnectDots
                 AvailableChildren.Enqueue(ChildrenList[i]);
             }
         }
+
+        public void ResetChildrenAndDespawn()
+        {
+            AvailableChildren.Clear();
+
+            foreach (var child in ChildrenList)
+            {
+                for (int i = 0; i < child.childCount; i++)
+                {
+                    Destroy(child.GetChild(i).gameObject);
+                }
+
+                AvailableChildren.Enqueue(child);
+            }
+        }
     }
 }

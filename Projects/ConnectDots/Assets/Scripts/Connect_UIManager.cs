@@ -9,6 +9,7 @@ using UnityEngine.UI.Extensions;
 using Random = UnityEngine.Random;
 using DG.Tweening;
 using DG.Tweening.Core;
+using UnityEngine.Serialization;
 using UnityEngine.UI;
 
 namespace MainGame.ConnectDots
@@ -36,10 +37,8 @@ namespace MainGame.ConnectDots
 
         #region Editor Variables
 
-        [SerializeField] private List<Sprite> NumbersSpriteList = new();
-
         [Header("Heading Area Vars")] [SerializeField]
-        private TextMeshProUGUI HeadingCriteriaText;
+        private TextMeshProUGUI QuesCountText;
 
         [SerializeField] private Image[] LivesImages;
 
@@ -51,11 +50,18 @@ namespace MainGame.ConnectDots
         [SerializeField] private GameObject[] ProgressBarStars;
         [SerializeField] private GameObject LineAnimCartoon;
 
+        [SerializeField] private GameObject GameProtectorScreen;
+
+        [Space(20), SerializeField] private GameObject AnswerSetResultPanel;
+        [SerializeField] private TextMeshProUGUI AnswerSetResultPanelText;
+
+
         [SerializeField, Space(20)] private List<Connect_PlacementObj> RandomPlacementList;
 
         [Header("Game Over Panel")] [SerializeField]
         private Image[] AchievedStarsImages;
 
+        [SerializeField] private GameObject GameOverPanel;
         [SerializeField] private TextMeshProUGUI GameOverText;
 
         [Header("Misc Area Vars")] [SerializeField]
@@ -63,14 +69,20 @@ namespace MainGame.ConnectDots
 
         [SerializeField] private Color AchievedStarColor;
 
+        [SerializeField] private List<Color> NumBGColorList = new();
+
         #endregion
 
         #region Unity Events
 
-        [Header("Events")] public UnityEvent<string, List<int>,int> UIM_OnGameStart = new();
-        [Header("Events")] public UnityEvent<int, int, bool> UIM_OnGameEnd = new();
-        public UnityEvent<int, int> UIM_OnCorrectConnect = new();
-        public UnityEvent<int> UIM_OnWrongSelection = new();
+        [Header("Events")] public UnityEvent<int> UIM_OnGameStart = new();
+        public UnityEvent<Connect_DataSO, int, int> UIM_SetupNextQuestion = new();
+
+        public UnityEvent UIM_UpdateUIForCorrectAnswer = new();
+        public UnityEvent<int> UIM_UpdateUIForIncorrectAnswer = new();
+        public UnityEvent<Vector3, bool> UIM_UpdateUIForCorrectFullAnswerSet = new();
+        public UnityEvent<int, int, bool> UIM_UpdateUIForIncorrectFullAnswerSet = new();
+        public UnityEvent<int, int> UIM_GameOver = new();
 
         #endregion
 
@@ -153,6 +165,18 @@ namespace MainGame.ConnectDots
             return stars;
         }
 
+        private void ReSetupLineRendererQueue()
+        {
+            // Re setup queue
+            _lineQueue.Clear();
+
+            var lines = LinePoolParent.GetComponentsInChildren<UILineRenderer>(true);
+            foreach (var line in lines)
+            {
+                _lineQueue.Enqueue(line);
+            }
+        }
+
         #endregion
 
         private void Awake()
@@ -168,33 +192,123 @@ namespace MainGame.ConnectDots
         {
             _gameManager = Connect_GameManager.instance;
 
-            // spawn line objects in semi-pool
-            UIM_OnGameStart.AddListener((string criteriaText, List<int> data, int LivesCount) =>
-            {
-                HeadingCriteriaText.text = criteriaText;
-                SpawnLinePoolAndSetupNumObjs(data);
-
-                for (int i = 0; i < LivesCount; i++)
+            UIM_OnGameStart.AddListener(
+                (int quesCount) =>
                 {
-                    LivesImages[i].gameObject.SetActive(true);
+                    QuesCountText.text = $"Ques: 0/{quesCount}";
+
+                    for (int i = 0; i < 20; i++)
+                    {
+                        SetupLineRenderer();
+                    }
+                });
+
+            UIM_SetupNextQuestion.AddListener((Connect_DataSO gameData, int attemptedQues, int quesCount) =>
+            {
+                SetupNumObjs(gameData.AnswersList);
+
+                QuesCountText.text = $"Ques: {attemptedQues + 1}/{quesCount}";
+
+                for (int i = 0; i < LivesImages.Length; i++)
+                {
+                    LivesImages[i].gameObject.SetActive(false);
+
+                    if (i < gameData.LivesCount)
+                    {
+                        LivesImages[i].gameObject.SetActive(true);
+
+                        if (ColorUtility.TryParseHtmlString("#DA3D3D", out Color newColor))
+                        {
+                            LivesImages[i].color = newColor;
+                        }
+                    }
                 }
             });
 
-            UIM_OnCorrectConnect.AddListener((int correctAns, int totalQues) =>
+            UIM_UpdateUIForCorrectAnswer.AddListener(() => { _gameManager.GM_OnFullAnswerSetCorrect?.Invoke(); });
+
+            UIM_UpdateUIForIncorrectAnswer.AddListener((int count) =>
             {
+                LivesImages[count].color = Color.white;
+
+                if (count <= 0)
+                    _gameManager.GM_OnFullAnswerSetIncorrect?.Invoke();
+            });
+
+
+            UIM_UpdateUIForCorrectFullAnswerSet.AddListener((Vector3 data, bool continueGame) =>
+            {
+                ReSetupLineRendererQueue();
+
+                GameProtectorScreen.SetActive(true);
+
                 _progressBarCoroutine =
-                    StartCoroutine(ProgressBarAnimIncrease(ProgressBar.value, (float)correctAns / totalQues));
+                    StartCoroutine(ProgressBarAnimIncrease(ProgressBar.value,
+                        (float)data.x / data.z));
+
+                DOVirtual.DelayedCall(_averageAnimDurations * 0.9f, () =>
+                {
+                    AnswerSetResultPanel.SetActive(true);
+                    AnswerSetResultPanelText.text = "Perfection!!";
+
+                    DOVirtual.DelayedCall(_averageAnimDurations * 1.35f, () =>
+                    {
+                        AnswerSetResultPanel.SetActive(false);
+
+                        if (!continueGame)
+                            _gameManager.GM_OnGameOver?.Invoke();
+
+                        else
+                        {
+                            GameProtectorScreen.SetActive(false);
+                            _gameManager.GM_SetupNewQuestion?.Invoke();
+                        }
+                    });
+                });
             });
 
-            UIM_OnGameEnd.AddListener((int correctAns, int totalQues, bool win) =>
+
+            UIM_UpdateUIForIncorrectFullAnswerSet.AddListener(
+                (int attemptedAnsCount, int questionsCount, bool continueGame) =>
+                {
+                    ReSetupLineRendererQueue();
+
+                    GameProtectorScreen.SetActive(true);
+
+                    AnswerSetResultPanel.SetActive(true);
+                    AnswerSetResultPanelText.text = "Out Of Lives";
+
+                    DOVirtual.DelayedCall(_averageAnimDurations * 1.35f, () =>
+                    {
+                        AnswerSetResultPanel.SetActive(false);
+
+                        if (continueGame)
+                        {
+                            GameProtectorScreen.SetActive(false);
+
+                            _gameManager.GM_SetupNewQuestion?.Invoke();
+                        }
+
+
+                        else
+                            _gameManager.GM_OnGameOver?.Invoke();
+                    });
+                });
+
+
+            UIM_GameOver.AddListener((int score, int maxScore) =>
             {
-                for (int i = 0; i < GetStarsCount((float)correctAns / totalQues); i++)
+                GameOverPanel.SetActive(true);
+
+                int finalStars = GetStarsCount((float)score / maxScore);
+
+                if (finalStars == 0)
+                    GameOverText.text = "Try Harder Next Time";
+
+
+                for (int i = 0; i < finalStars; i++)
                     AchievedStarsImages[i].color = AchievedStarColor;
-
-                GameOverText.text = win ? "Well Done" : "Out Of Lives";
             });
-
-            UIM_OnWrongSelection.AddListener((int count) => { LivesImages[count].color = Color.white; });
 
 
             _cartoonMoveSpeed *= _averageAnimDurations;
@@ -205,27 +319,37 @@ namespace MainGame.ConnectDots
         /// Initialization of the game
         /// </summary>
         /// <param name="data">List of numbers to be put inside the sequence</param>
-        private void SpawnLinePoolAndSetupNumObjs(List<int> data)
+        private void SetupNumObjs(List<int> data)
         {
+            LineAnimCartoon.transform.position = new(35000, 16000, 19000);
+            _nextObjIndex = 0;
+            _cartoonMoveCurrIndex = 0;
+            _numberObjList.Clear();
+
+            for (int i = 0; i < LinePoolParent.childCount; i++)
+            {
+                LinePoolParent.GetChild(i).gameObject.SetActive(false);
+            }
+
             // shuffle placement transforms
             {
                 ShuffleList(RandomPlacementList);
 
                 foreach (var item in RandomPlacementList)
                 {
+                    item.ResetChildrenAndDespawn();
                     ShuffleQueue(item.AvailableChildren);
                 }
             }
 
-            // Main run area (when number is greater than 9 then additional images has to be added till the number. Or simply get the modular setup for the images and make new scriptings. Much better approach. UI provision limitations led to this approach)
+
             for (int i = 0; i < data.Count; i++)
             {
-                SetupLineRenderer();
-
                 Transform spawnParent = default;
 
                 int listIndex = i;
 
+                //ONLY SUPPORTS 2x the count of RandomPlacementList 
                 if (i >= RandomPlacementList.Count)
                     listIndex = i - RandomPlacementList.Count;
 
@@ -234,7 +358,7 @@ namespace MainGame.ConnectDots
                 Connect_NumberObj nObj = Instantiate(NumberObjPrefab, spawnParent, false);
 
                 nObj.NumberText.text = data[i].ToString();
-                nObj.NumberImage.sprite = NumbersSpriteList[data[i]];
+                nObj.NumBGImage.color = NumBGColorList[Random.Range(0, NumBGColorList.Count)];
 
                 int helper = i;
                 nObj.Button.onClick.AddListener(() => { SetupButtonClick(nObj, helper); });
@@ -244,19 +368,6 @@ namespace MainGame.ConnectDots
 
             return;
 
-            // Create the pool of UI Line Renderers for faster usage, single run creates 1 obj in pool
-            void SetupLineRenderer()
-            {
-                GameObject lObj = new GameObject("LineObject");
-                lObj.transform.SetParent(LinePoolParent);
-
-                UILineRenderer line = lObj.AddComponent<UILineRenderer>();
-                line.LineThickness = 7.35f;
-
-                lObj.SetActive(false);
-
-                _lineQueue.Enqueue(line);
-            }
 
             // Func to connect line between 2 points. Handling dynamically.
             void ConnectLineRenderer()
@@ -264,6 +375,7 @@ namespace MainGame.ConnectDots
                 UILineRenderer lObj = _lineQueue.Dequeue();
 
                 lObj.gameObject.SetActive(true);
+                lObj.Points.Clear();
 
                 // Setup transforms
                 lObj.Points.Add(_numberObjList[_nextObjIndex - 1].transform.position);
@@ -282,7 +394,7 @@ namespace MainGame.ConnectDots
                     else
                         LineAnimCartoon.transform.position = obj.transform.position;
 
-                    _gameManager.GM_OnCorrectConnect?.Invoke();
+                    //_gameManager.GM_OnCorrectConnect?.Invoke();
                     _nextObjIndex++;
 
                     obj.Button.interactable = false;
@@ -295,7 +407,7 @@ namespace MainGame.ConnectDots
 
                 else
                 {
-                    _gameManager.GM_OnIncorrectConnect?.Invoke();
+                    _gameManager.GM_OnAnswerIncorrect?.Invoke();
                 }
             }
         }
@@ -320,7 +432,7 @@ namespace MainGame.ConnectDots
                     }
 
                     else if (_cartoonMoveCurrIndex >= _numberObjList.Count)
-                        _gameManager.GM_OnGameEnd?.Invoke(true);
+                        _gameManager.GM_OnAnswerCorrect?.Invoke();
                 });
             }
 
@@ -355,6 +467,22 @@ namespace MainGame.ConnectDots
 
 
             yield return null;
+        }
+
+        /// <summary>
+        /// Create the pool of UI Line Renderers for faster usage, single run creates 1 obj in pool
+        /// </summary>
+        private void SetupLineRenderer()
+        {
+            GameObject lObj = new GameObject("LineObject");
+            lObj.transform.SetParent(LinePoolParent);
+
+            UILineRenderer line = lObj.AddComponent<UILineRenderer>();
+            line.LineThickness = 7.35f;
+
+            lObj.SetActive(false);
+
+            _lineQueue.Enqueue(line);
         }
     }
 }
