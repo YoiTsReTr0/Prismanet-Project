@@ -10,9 +10,9 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d761cf4914860d940adbe0719030f676, type: 3}
-  m_Name: Game 3
+  m_Name: Game 1
   m_EditorClassIdentifier: 
-  LivesCount: 1
-  RotateableSprite: {fileID: 21300000, guid: a483b6a534c1f9f4b91de0763e102ad9, type: 3}
-  TotalBoxesCount: 6
-  PositionsList: 010000000300000004000000
+  LivesCount: 2
+  RotateableSprite: {fileID: 21300000, guid: b22b9935efa747043800fea51b563966, type: 3}
+  TotalBoxesCount: 8
+  PositionsList: 000000000100000002000000

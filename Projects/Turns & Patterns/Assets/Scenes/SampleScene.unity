@@ -3366,7 +3366,12 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 344c930e90925ae4e90faf8705905997, type: 2}
   - {fileID: 11400000, guid: 7cd5a2e08edf6894cbf2f03a2e5d51fe, type: 2}
   - {fileID: 11400000, guid: 3e3ac1951befd104d972abd300f70edb, type: 2}
-  QuesCount: 3
+  - {fileID: 11400000, guid: 1768c6c6d632ff544a48d1694a19a89b, type: 2}
+  - {fileID: 11400000, guid: 411f24b5265d4324b8cc53ef4df76886, type: 2}
+  - {fileID: 11400000, guid: 6cd3ed2fdac5b764ea1c9737b43ba8db, type: 2}
+  - {fileID: 11400000, guid: 7f7bd49c68dd3824da4802b41303b6b1, type: 2}
+  - {fileID: 11400000, guid: c6da570195d320246978f01df05bbaad, type: 2}
+  QuesCount: 10
   GM_OnGameStart:
     m_PersistentCalls:
       m_Calls: []
