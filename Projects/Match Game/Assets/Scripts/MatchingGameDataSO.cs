@@ -23,5 +23,10 @@ namespace MainGame.MatchingGame
         [Tooltip(
             "Coins reward count per correct answer. Also may depend on the difficulty so adjust values accordingly")]
         public int RewardCoinsPerAnswerCount;
+
+        [Space(35), Header("Spawn Parent Settings")]
+        public Vector2 CellSize;
+
+        public Vector2 Spacing;
     }
 }

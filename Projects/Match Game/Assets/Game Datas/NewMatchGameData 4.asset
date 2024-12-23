@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8f47df35efca6cc42a300691612d4c8d, type: 3}
+  m_Name: NewMatchGameData 4
+  m_EditorClassIdentifier: 
+  LivesCount: 4
+  LeftOptionImages:
+  - {fileID: 21300000, guid: 33c1ef8625244a64093234dd8bcebcd5, type: 3}
+  - {fileID: 21300000, guid: e25c29ab51713ae43965fc4d80353101, type: 3}
+  - {fileID: 21300000, guid: 70766cfb676158040a5b6518077dfb24, type: 3}
+  - {fileID: 21300000, guid: 96159e3882e75da41b7e1f824bbfb3da, type: 3}
+  - {fileID: 21300000, guid: b82ee8996972f0844b1456293c31431e, type: 3}
+  - {fileID: 21300000, guid: 4226eb1026245ad4a83cb29e07281c93, type: 3}
+  RightOptionImages:
+  - {fileID: 21300000, guid: 33c1ef8625244a64093234dd8bcebcd5, type: 3}
+  - {fileID: 21300000, guid: e25c29ab51713ae43965fc4d80353101, type: 3}
+  - {fileID: 21300000, guid: 70766cfb676158040a5b6518077dfb24, type: 3}
+  - {fileID: 21300000, guid: 96159e3882e75da41b7e1f824bbfb3da, type: 3}
+  - {fileID: 21300000, guid: b82ee8996972f0844b1456293c31431e, type: 3}
+  - {fileID: 21300000, guid: 4226eb1026245ad4a83cb29e07281c93, type: 3}
+  RewardCoinsPerAnswerCount: 5
+  CellSize: {x: 310, y: 285}
+  Spacing: {x: 385, y: 220}

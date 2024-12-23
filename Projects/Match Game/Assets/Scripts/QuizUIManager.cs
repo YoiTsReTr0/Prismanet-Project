@@ -37,9 +37,7 @@ namespace MainGame.MatchingGame
         #region Editor Variables
 
         [Header("Heading Area")] [SerializeField]
-        private TextMeshProUGUI CoinsText;
-
-        [SerializeField] private GameObject CoinsImage;
+        private TextMeshProUGUI QuesCountText;
 
         [SerializeField] private Image[] LivesImages;
 
@@ -51,6 +49,11 @@ namespace MainGame.MatchingGame
 
         [SerializeField] private Slider ProgressBar;
         [SerializeField] private GameObject[] ProgressBarStars;
+
+        [SerializeField] private GameObject GameProtectorScreen;
+
+        [Space(20), SerializeField] private GameObject AnswerSetResultPanel;
+        [SerializeField] private TextMeshProUGUI AnswerSetResultPanelText;
 
         [Header("Game Over Area")] [SerializeField]
         private GameObject GameOverPanel;
@@ -70,13 +73,15 @@ namespace MainGame.MatchingGame
 
         #region Unity Events
 
-        [Header("Events")] public UnityEvent<List<Sprite>, List<Sprite>, int>
-            UIM_OnGameStart = new(); // Called from Game Manager when game starts
+        [Header("Events")] public UnityEvent<int> UIM_OnGameStart = new();
+        public UnityEvent<MatchingGameDataSO, int, int> UIM_SetupNextQuestion = new();
 
-        public UnityEvent<int, int, bool> UIM_GameOver = new(); // Called from Game Manager when game starts
+        public UnityEvent<bool> UIM_UpdateUIForCorrectAnswer = new();
+        public UnityEvent<int> UIM_UpdateUIForIncorrectAnswer = new();
+        public UnityEvent<Vector3, bool> UIM_UpdateUIForCorrectFullAnswerSet = new();
+        public UnityEvent<int, int, bool> UIM_UpdateUIForIncorrectFullAnswerSet = new();
+        public UnityEvent<int, int> UIM_GameOver = new();
         public UnityEvent UIM_OutsideClick = new();
-        public UnityEvent<int> UIM_OnWrongSelection = new();
-        public UnityEvent<int, int> UIM_UpdateUIForCorrectAnswer = new(); // Called from Game Manager when game starts
 
         //public UnityEvent UIM_SetupNextQuestion = new(); // Called from Game Manager when game starts
 
@@ -140,35 +145,119 @@ namespace MainGame.MatchingGame
         {
             _gameManager = QuizGameManager.instance;
 
-            UIM_OnGameStart.AddListener((List<Sprite> leftList, List<Sprite> rightList, int LivesCount) =>
-            {
-                SetupMatchingOptions(leftList, rightList);
 
-                for (int i = 0; i < LivesCount; i++)
+            UIM_OnGameStart.AddListener(
+                (int quesCount) => { QuesCountText.text = $"Ques: 0/{quesCount}"; });
+
+            UIM_SetupNextQuestion.AddListener((MatchingGameDataSO gameData, int attemptedQues, int quesCount) =>
+            {
+                SetupMatchingOptions(gameData.LeftOptionImages, gameData.RightOptionImages, gameData.CellSize,
+                    gameData.Spacing);
+
+                QuesCountText.text = $"Ques: {attemptedQues + 1}/{quesCount}";
+
+                for (int i = 0; i < LivesImages.Length; i++)
                 {
-                    LivesImages[i].gameObject.SetActive(true);
+                    LivesImages[i].gameObject.SetActive(false);
+
+                    if (i < gameData.LivesCount)
+                    {
+                        LivesImages[i].gameObject.SetActive(true);
+
+                        if (ColorUtility.TryParseHtmlString("#DA3D3D", out Color newColor))
+                        {
+                            LivesImages[i].color = newColor;
+                        }
+                    }
                 }
             });
 
-            UIM_GameOver.AddListener((int correctAns, int totalQues, bool win) =>
+            UIM_UpdateUIForCorrectAnswer.AddListener((bool complete) =>
+            {
+                if (complete)
+                    _gameManager.GM_OnFullAnswerSetCorrect?.Invoke();
+            });
+
+            UIM_UpdateUIForIncorrectAnswer.AddListener((int count) =>
+            {
+                LivesImages[count].color = Color.white;
+
+                if (count <= 0)
+                    _gameManager.GM_OnFullAnswerSetIncorrect?.Invoke();
+            });
+
+
+            UIM_UpdateUIForCorrectFullAnswerSet.AddListener((Vector3 data, bool continueGame) =>
+            {
+                GameProtectorScreen.SetActive(true);
+
+                _progressBarCoroutine =
+                    StartCoroutine(ProgressBarAnimIncrease(ProgressBar.value,
+                        (float)data.x / data.z));
+
+                DOVirtual.DelayedCall(_averageAnimDurations * 0.9f, () =>
+                {
+                    AnswerSetResultPanel.SetActive(true);
+                    AnswerSetResultPanelText.text = "Perfection!!";
+
+                    DOVirtual.DelayedCall(_averageAnimDurations * 1.35f, () =>
+                    {
+                        AnswerSetResultPanel.SetActive(false);
+
+                        if (!continueGame)
+                            _gameManager.GM_OnGameOver?.Invoke();
+
+                        else
+                        {
+                            GameProtectorScreen.SetActive(false);
+                            _gameManager.GM_SetupNewQuestion?.Invoke();
+                        }
+                    });
+                });
+            });
+
+
+            UIM_UpdateUIForIncorrectFullAnswerSet.AddListener(
+                (int attemptedAnsCount, int questionsCount, bool continueGame) =>
+                {
+                    GameProtectorScreen.SetActive(true);
+
+                    AnswerSetResultPanel.SetActive(true);
+                    AnswerSetResultPanelText.text = "Out Of Lives";
+
+                    DOVirtual.DelayedCall(_averageAnimDurations * 1.35f, () =>
+                    {
+                        AnswerSetResultPanel.SetActive(false);
+
+                        if (continueGame)
+                        {
+                            GameProtectorScreen.SetActive(false);
+
+                            _gameManager.GM_SetupNewQuestion?.Invoke();
+                        }
+
+
+                        else
+                            _gameManager.GM_OnGameOver?.Invoke();
+                    });
+                });
+
+
+            UIM_GameOver.AddListener((int score, int maxScore) =>
             {
                 GameOverPanel.SetActive(true);
 
-                GameOverText.text = win ? "Well Done" : "Out Of Lives";
+                int finalStars = GetStarsCount((float)score / maxScore);
 
-                for (int i = 0; i < GetStarsCount((float)correctAns / totalQues); i++)
+                if (finalStars == 0)
+                    GameOverText.text = "Try Harder Next Time";
+
+
+                for (int i = 0; i < finalStars; i++)
                     AchievedStarsImages[i].color = AchievedStarColor;
             });
 
-            UIM_UpdateUIForCorrectAnswer.AddListener((int correctAns, int totalQues) =>
-            {
-                _progressBarCoroutine =
-                    StartCoroutine(ProgressBarAnimIncrease(ProgressBar.value, (float)correctAns / totalQues));
-            });
-
             UIM_OutsideClick.AddListener(DeselectCurrentOption);
-
-            UIM_OnWrongSelection.AddListener((int count) => { LivesImages[count].color = Color.white; });
         }
 
 
@@ -268,10 +357,51 @@ namespace MainGame.MatchingGame
         /// </summary>
         /// <param name="leftList">List of sprites to be displayed on left side</param>
         /// <param name="rightList">List of sprites to be displayed on right side</param>
-        private void SetupMatchingOptions(List<Sprite> leftList, List<Sprite> rightList)
+        private void SetupMatchingOptions(List<Sprite> leftList, List<Sprite> rightList, Vector2 cellSize,
+            Vector2 spacing)
         {
+            LeftOptionsParent.GetComponent<GridLayoutGroup>().cellSize = cellSize;
+            LeftOptionsParent.GetComponent<GridLayoutGroup>().spacing = spacing;
+
+            RightOptionsParent.GetComponent<GridLayoutGroup>().cellSize = cellSize;
+            RightOptionsParent.GetComponent<GridLayoutGroup>().spacing = spacing;
+
             int helperVal;
 
+            _leftOptionButtonList.Clear();
+            _rightOptionButtonList.Clear();
+
+            // Destroy old options
+            for (int i = 0; i < LeftOptionsParent.childCount; i++)
+            {
+                Destroy(LeftOptionsParent.GetChild(i).gameObject);
+                Destroy(RightOptionsParent.GetChild(i).gameObject);
+            }
+
+            for (int i = 0; i < leftList.Count; i++)
+            {
+                helperVal = i;
+
+                OptionsObject btnLeft = Instantiate(MatchOptionObj, LeftOptionsParent, false);
+                OptionsObject btnRight = Instantiate(MatchOptionObj, RightOptionsParent, false);
+
+                ButtonEventsSetup(btnLeft, helperVal);
+                ButtonEventsSetup(btnRight, helperVal);
+
+                _leftOptionButtonList.Add(btnLeft);
+                _rightOptionButtonList.Add(btnRight);
+
+                btnLeft.GetComponent<Image>().sprite = leftList[i];
+                btnRight.GetComponent<Image>().sprite = rightList[i];
+
+                ManageMatchObjSize(leftList.Count);
+                ManageMatchObjSize(rightList.Count);
+            }
+
+            ShuffleOptions(LeftOptionsParent);
+            ShuffleOptions(RightOptionsParent);
+
+            return;
 
             void RemoveCompsOnChoiceCorrect(OptionsObject obj)
             {
@@ -309,7 +439,7 @@ namespace MainGame.MatchingGame
                         // correct choice
                         if (assignedNo == _currSelectionNo && currBtn.ObjButton != _currSelectedOptionBtn)
                         {
-                            _gameManager.GM_OnOptionCorrect?.Invoke();
+                            _gameManager.GM_OnAnswerCorrect?.Invoke();
 
                             ManageInteractableOnClick(currBtn, false, true);
                             RemoveCompsOnChoiceCorrect(currBtn);
@@ -324,7 +454,7 @@ namespace MainGame.MatchingGame
                         // Incorrect choice
                         else if (assignedNo != _currSelectionNo)
                         {
-                            _gameManager.GM_OnOptionIncorrect?.Invoke();
+                            _gameManager.GM_OnAnswerIncorrect?.Invoke();
                         }
 
                         OptionBtnClickAnim(currBtn.ObjButton, 2);
@@ -335,37 +465,6 @@ namespace MainGame.MatchingGame
                     }
                 });
             }
-
-
-            // Destroy old options
-            for (int i = 0; i < LeftOptionsParent.childCount; i++)
-            {
-                Destroy(LeftOptionsParent.GetChild(i).gameObject);
-                Destroy(RightOptionsParent.GetChild(i).gameObject);
-            }
-
-            for (int i = 0; i < leftList.Count; i++)
-            {
-                helperVal = i;
-
-                OptionsObject btnLeft = Instantiate(MatchOptionObj, LeftOptionsParent, false);
-                OptionsObject btnRight = Instantiate(MatchOptionObj, RightOptionsParent, false);
-
-                ButtonEventsSetup(btnLeft, helperVal);
-                ButtonEventsSetup(btnRight, helperVal);
-
-                _leftOptionButtonList.Add(btnLeft);
-                _rightOptionButtonList.Add(btnRight);
-
-                btnLeft.GetComponent<Image>().sprite = leftList[i];
-                btnRight.GetComponent<Image>().sprite = rightList[i];
-
-                ManageMatchObjSize(leftList.Count);
-                ManageMatchObjSize(rightList.Count);
-            }
-
-            ShuffleOptions(LeftOptionsParent);
-            ShuffleOptions(RightOptionsParent);
         }
 
 

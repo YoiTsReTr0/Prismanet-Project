@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine.Events;
 using UnityEngine;
 
@@ -9,7 +10,9 @@ namespace MainGame.MatchingGame
 
         #region Editor Variables
 
-        [SerializeField] private MatchingGameDataSO LevelData;
+        [SerializeField] private List<MatchingGameDataSO> LevelDataList;
+
+        [SerializeField] private int QuestionCount = 10;
 
         #endregion
 
@@ -21,24 +24,49 @@ namespace MainGame.MatchingGame
 
         private int _userCoins = 16;
 
-        [SerializeField] private int _totalMatches = 5;
-        private int _correctAnswers = 0;
+        private int _totalMatches = 5;
+        private int _corrMatches = 0;
 
         private int _currLivesCount;
-        [SerializeField] private int _totalLivesCount;
+        private int _totalLivesCount;
+
+        private int _corrAnsCount;
+        private int _attemptedAnsCount;
+
+        private MatchingGameDataSO _currGameData;
 
         #endregion
 
         #region Events/Actions
 
-        [HideInInspector] public UnityEvent GM_OnGameStart; // Event can be used to restart the game
-        [HideInInspector] public UnityEvent GM_OnOptionCorrect;
-        [HideInInspector] public UnityEvent GM_OnOptionIncorrect;
-        [HideInInspector] public UnityEvent<bool> GM_OnGameOver;
+        [HideInInspector] public UnityEvent GM_OnGameStart = new();
+        [HideInInspector] public UnityEvent GM_SetupNewQuestion = new();
+
+        [HideInInspector] public UnityEvent GM_OnAnswerCorrect = new();
+        [HideInInspector] public UnityEvent GM_OnAnswerIncorrect = new();
+
+        [HideInInspector] public UnityEvent GM_OnFullAnswerSetCorrect = new();
+        [HideInInspector] public UnityEvent GM_OnFullAnswerSetIncorrect = new();
+
+        [HideInInspector] public UnityEvent GM_OnGameOver = new();
 
         #endregion
 
         #region Helper Functions
+
+        private void UpdateGameData()
+        {
+            MatchingGameDataSO newData = LevelDataList[Random.Range(0, LevelDataList.Count)];
+
+            while (_currGameData == newData)
+            {
+                newData = LevelDataList[Random.Range(0, LevelDataList.Count)];
+            }
+
+            _currGameData = newData;
+            _totalMatches = _currGameData.LeftOptionImages.Count;
+            _totalLivesCount = _currLivesCount = _currGameData.LivesCount;
+        }
 
         #endregion
 
@@ -54,49 +82,68 @@ namespace MainGame.MatchingGame
         private void Start()
         {
             _uiManager = QuizUIManager.instance;
-
-            _totalMatches = LevelData.LeftOptionImages.Count;
-            _currLivesCount = _totalLivesCount = LevelData.LivesCount;
-
-            // Setup and sub functions to events
             GM_OnGameStart.AddListener(() =>
             {
-                _uiManager.UIM_OnGameStart?.Invoke(LevelData.LeftOptionImages,
-                    LevelData.LeftOptionImages, _totalLivesCount);
-                //_uiManager.UIM_SetupNextQuestion?.Invoke();
+                _uiManager.UIM_OnGameStart?.Invoke(QuestionCount);
+
+                GM_SetupNewQuestion?.Invoke();
             });
 
-            GM_OnOptionCorrect.AddListener(() =>
+            GM_SetupNewQuestion.AddListener(() =>
             {
-                _correctAnswers++;
-                _userCoins += LevelData.RewardCoinsPerAnswerCount;
+                UpdateGameData();
 
-                if (_correctAnswers < _totalMatches)
-                {
-                    //_uiManager.UIM_SetupNextQuestion?.Invoke();
-                }
+                _corrMatches = 0;
 
-                else if (_correctAnswers >= _totalMatches)
-                    GM_OnGameOver?.Invoke(true);
-
-                _uiManager.UIM_UpdateUIForCorrectAnswer?.Invoke(_correctAnswers, _totalMatches);
+                _uiManager.UIM_SetupNextQuestion?.Invoke(_currGameData, _attemptedAnsCount, QuestionCount);
             });
 
-            GM_OnOptionIncorrect.AddListener(() =>
+
+            GM_OnFullAnswerSetCorrect.AddListener(() =>
+            {
+                _attemptedAnsCount++;
+                _corrAnsCount++;
+
+                bool continueGame = _attemptedAnsCount < QuestionCount;
+
+                _uiManager.UIM_UpdateUIForCorrectFullAnswerSet?.Invoke(
+                    new(_corrAnsCount, _attemptedAnsCount, QuestionCount),
+                    continueGame);
+            });
+
+            GM_OnFullAnswerSetIncorrect.AddListener(() =>
+            {
+                _attemptedAnsCount++;
+                bool continueGame = _attemptedAnsCount < QuestionCount;
+
+                _currLivesCount = continueGame ? _totalLivesCount : _currLivesCount;
+                _uiManager.UIM_UpdateUIForIncorrectFullAnswerSet?.Invoke(_attemptedAnsCount, QuestionCount,
+                    continueGame);
+            });
+
+            GM_OnAnswerCorrect.AddListener(() =>
+            {
+                _corrMatches++;
+
+                _uiManager.UIM_UpdateUIForCorrectAnswer?.Invoke(_corrMatches == _totalMatches);
+            });
+
+            GM_OnAnswerIncorrect.AddListener(() =>
             {
                 _currLivesCount--;
-                _uiManager.UIM_OnWrongSelection?.Invoke(_currLivesCount);
-
-                if (_currLivesCount <= 0)
-                    GM_OnGameOver?.Invoke(false);
+                _uiManager.UIM_UpdateUIForIncorrectAnswer?.Invoke(_currLivesCount);
             });
 
-            GM_OnGameOver.AddListener((bool win) =>
-            {
-                _gameOver = true;
-                _uiManager.UIM_GameOver?.Invoke(_correctAnswers, _totalMatches, win);
 
-                Debug.Log("Game Over");
+            GM_OnGameOver.AddListener(() =>
+            {
+                /*if (QuestionCount == 1)
+                    _uiManager.UIM_GameOver?.Invoke(_currLivesCount, _totalLivesCount);
+
+                else*/
+                {
+                    _uiManager.UIM_GameOver?.Invoke(_corrAnsCount, QuestionCount);
+                }
             });
 
             GM_OnGameStart?.Invoke();
