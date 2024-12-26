@@ -455,6 +455,7 @@ namespace MainGame.MatchingGame
                         else if (assignedNo != _currSelectionNo)
                         {
                             _gameManager.GM_OnAnswerIncorrect?.Invoke();
+                            currBtn.HandleIncorrectSelection();
                         }
 
                         OptionBtnClickAnim(currBtn.ObjButton, 2);
