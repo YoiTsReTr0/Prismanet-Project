@@ -408,6 +408,7 @@ namespace MainGame.ConnectDots
                 else
                 {
                     _gameManager.GM_OnAnswerIncorrect?.Invoke();
+                    obj.HandleIncorrectSelection();
                 }
             }
         }

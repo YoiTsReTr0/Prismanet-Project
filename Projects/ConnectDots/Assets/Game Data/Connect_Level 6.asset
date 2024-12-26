@@ -12,5 +12,5 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4d0b75c371073c74f95e4f74216ddfd6, type: 3}
   m_Name: Connect_Level 6
   m_EditorClassIdentifier: 
-  LivesCount: 2
+  LivesCount: 4
   AnswersList: 41000000420000004300000044000000450000004600000047000000
