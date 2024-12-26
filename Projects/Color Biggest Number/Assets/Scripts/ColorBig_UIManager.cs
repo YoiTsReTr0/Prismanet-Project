@@ -29,6 +29,12 @@ namespace ColorBigGame.Main
         [Header("Game Area")] [SerializeField] private Transform QuestionsParent;
         [SerializeField] private ColorBig_NumObj QuestionsObj;
 
+        [SerializeField] private Button CheckAnswerBtn;
+
+        [SerializeField] private GameObject CorrectResultPanel;
+        [SerializeField] private GameObject IncorrectResultPanel;
+
+
         [Header("Game Over Area")] [SerializeField]
         private GameObject GameOverPanel;
 
@@ -47,6 +53,8 @@ namespace ColorBigGame.Main
         private ColorBig_GameManager _gameManager;
 
         private int _currCorrectIndex;
+        private int _currSelectedIndex;
+        private ColorBig_NumObj _currSelectedNumObj;
 
         private bool _gameOver;
 
@@ -71,7 +79,8 @@ namespace ColorBigGame.Main
         public UnityEvent<int[], int> UIM_SetupNextQuestion = new(); // Called from Game Manager when game starts
         public UnityEvent<int, int> UIM_GameOver = new(); // Called from Game Manager when game starts
 
-        public UnityEvent<int> UIM_UpdateUIForCorrectAnswer = new();
+        public UnityEvent<int, bool> UIM_UpdateUIForCorrectAnswer = new();
+        public UnityEvent<bool> UIM_UpdateUIForIncorrectAnswer = new();
 
         #endregion
 
@@ -162,36 +171,69 @@ namespace ColorBigGame.Main
             });
             UIM_SetupNextQuestion.AddListener((ques, attemptedQues) =>
             {
-                StartCoroutine(DelayedSetupQuestion(ques, attemptedQues + 1));
+                _questionsObjList.Clear();
+                _currSelectedIndex = -1;
+
+                SetupQuestion(ques, attemptedQues + 1);
             });
 
-            UIM_UpdateUIForCorrectAnswer.AddListener(_score => CorrectAnsUpdateUI(_score));
+            UIM_UpdateUIForCorrectAnswer.AddListener((_score, isContinue) =>
+            {
+                CorrectAnsUpdateUI(_score);
+                CorrectResultPanel.SetActive(true);
+
+                DOVirtual.DelayedCall(_averageAnimDurations, () =>
+                {
+                    CorrectResultPanel.SetActive(false);
+
+                    if (isContinue)
+                        _gameManager.GM_OnSetupNextQuestion?.Invoke();
+
+                    else
+                        _gameManager.GM_OnGameOver?.Invoke();
+                });
+            });
+
+            UIM_UpdateUIForIncorrectAnswer.AddListener((isContinue) =>
+            {
+                IncorrectResultPanel.SetActive(true);
+
+                DOVirtual.DelayedCall(_averageAnimDurations, () =>
+                {
+                    IncorrectResultPanel.SetActive(false);
+
+                    if (isContinue)
+                        _gameManager.GM_OnSetupNextQuestion?.Invoke();
+
+                    else
+                        _gameManager.GM_OnGameOver?.Invoke();
+                });
+            });
 
             UIM_GameOver.AddListener((int score, int maxScore) =>
             {
                 int stars = GetStarsCount((float)score / maxScore);
 
-                StartCoroutine(DelayedGameOver(stars));
+                GameOverSetup(stars);
 
                 _gameOver = true;
 
                 for (int i = 0; i < stars; i++)
                     AchievedStarsImages[i].color = AchievedStarColor;
             });
+
+            CheckAnswerBtn.onClick.AddListener(CheckAnswer);
         }
 
-        private IEnumerator DelayedSetupQuestion(int[] array, int attemptedQues)
+        private void SetupQuestion(int[] array, int attemptedQues)
         {
-            yield return new WaitForSeconds(2f);
             ScoreText.text = $"Ques: {attemptedQues}/{_quesTotalCount} ";
 
             SetupQuestion(array);
         }
 
-        private IEnumerator DelayedGameOver(int score)
+        private void GameOverSetup(int score)
         {
-            yield return new WaitForSeconds(3.5f);
-
             GameOverPanel.SetActive(true);
             GameOverResultText.text = score < 1 ? "Try Harder Next Time" : "Well Done";
         }
@@ -253,44 +295,53 @@ namespace ColorBigGame.Main
                 int index = i;
                 btnObj.ObjButton.onClick.AddListener(() =>
                 {
-                    _quesAtteptedCount++;
-                    if (index == _currCorrectIndex)
+                    //_quesAtteptedCount++;
+                    /*if (index == _currCorrectIndex)
                         SetupButtonClick(true, btnObj);
 
                     else
-                        SetupButtonClick(false, btnObj);
+                        SetupButtonClick(false, btnObj);*/
+
+                    _currSelectedIndex = index;
+
+                    SetupButtonClick(btnObj);
                 });
             }
 
             return;
 
-            void SetupButtonClick(bool correct, ColorBig_NumObj btnObj)
+            void SetupButtonClick(ColorBig_NumObj btnObj)
             {
-                foreach (ColorBig_NumObj obj in _questionsObjList)
-                    obj.ObjButton.interactable = false;
+                btnObj.ObjImage.color = _selectionColor;
 
-                if (correct)
-                {
-                    _gameManager.GM_OnAnswerCorrect?.Invoke();
-                    //btnObj.ObjText.color = _selectionColor;
-                    btnObj.ObjImage.color = _selectionColor;
-                }
-                else
-                {
-                    _gameManager.GM_OnAnswerIncorrect?.Invoke();
-                    //btnObj.ObjText.color = Color.red;
-                    btnObj.ObjImage.color = Color.red;
+                if (_currSelectedNumObj == btnObj)
+                    return;
 
-                    _questionsObjList[_currCorrectIndex].ObjImage.color = _selectionColor;
-                }
+                if (_currSelectedNumObj)
+                    _currSelectedNumObj.ObjImage.color = Color.white;
 
-                _questionsObjList.Clear();
+                _currSelectedNumObj = btnObj;
 
-                if (!_gameOver) // Debug
-                {
-                    // Anims area 
-                }
+                if (!CheckAnswerBtn.interactable)
+                    CheckAnswerBtn.interactable = true;
             }
+        }
+
+        private void CheckAnswer()
+        {
+            if (_currSelectedIndex == _currCorrectIndex)
+            {
+                _gameManager.GM_OnAnswerCorrect?.Invoke();
+            }
+            else
+            {
+                _gameManager.GM_OnAnswerIncorrect?.Invoke();
+                _currSelectedNumObj.ObjImage.color = Color.red;
+
+                _questionsObjList[_currCorrectIndex].ObjImage.color = _selectionColor;
+            }
+
+            CheckAnswerBtn.interactable = false;
         }
 
         private void CorrectAnsUpdateUI(int correctAns)

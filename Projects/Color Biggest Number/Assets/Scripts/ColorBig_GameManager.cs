@@ -37,6 +37,7 @@ namespace ColorBigGame.Main
 
         [HideInInspector] public UnityEvent GM_OnGameStart;
         [HideInInspector] public UnityEvent GM_OnAnswerCorrect;
+        [HideInInspector] public UnityEvent GM_OnSetupNextQuestion;
         [HideInInspector] public UnityEvent GM_OnAnswerIncorrect;
         [HideInInspector] public UnityEvent GM_OnGameOver;
 
@@ -104,23 +105,21 @@ namespace ColorBigGame.Main
                 _correctAnswers++;
                 _score++;
 
-                if (_attemptedAnswers == NumOfQuestions)
-                    GM_OnGameOver?.Invoke();
 
-                else
-                    _UIManager.UIM_SetupNextQuestion?.Invoke(GetQuestion(1, 10), _attemptedAnswers);
-
-                _UIManager.UIM_UpdateUIForCorrectAnswer?.Invoke(_score);
+                _UIManager.UIM_UpdateUIForCorrectAnswer?.Invoke(_score, _attemptedAnswers < NumOfQuestions);
             });
+
+            GM_OnSetupNextQuestion.AddListener(() =>
+            {
+                _UIManager.UIM_SetupNextQuestion?.Invoke(GetQuestion(1, 10), _attemptedAnswers);
+            });
+
             GM_OnAnswerIncorrect.AddListener(() =>
             {
                 _attemptedAnswers++;
 
-                if (_attemptedAnswers == NumOfQuestions)
-                    GM_OnGameOver?.Invoke();
 
-                else
-                    _UIManager.UIM_SetupNextQuestion?.Invoke(GetQuestion(1, 10), _attemptedAnswers);
+                _UIManager.UIM_UpdateUIForIncorrectAnswer?.Invoke(_attemptedAnswers < NumOfQuestions);
             });
 
 
