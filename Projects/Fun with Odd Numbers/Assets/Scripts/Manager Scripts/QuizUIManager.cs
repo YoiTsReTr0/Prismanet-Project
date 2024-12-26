@@ -29,6 +29,10 @@ namespace QuizGame.LevelPlay
         private int _correctAnsRewardCoins = 0;
         private int _quesCount = 0;
 
+        private int _currCorrectAns;
+        private int _currChosenChoice;
+        private Button _currChosenChoiceButton;
+
         #endregion
 
         #region Editor Variables
@@ -55,7 +59,7 @@ namespace QuizGame.LevelPlay
         [SerializeField] private GameObject ChoicesProtectorImage;
         [SerializeField] private GameObject CorrectResultPanel;
         [SerializeField] private GameObject IncorrectResultPanel;
-        //[SerializeField] private TextMeshProUGUI ChoiceResultText;
+        [SerializeField] private Button CheckAnswerBtn;
 
         [Header("Game Over Area")] [SerializeField]
         private GameObject GameOverPanel;
@@ -65,6 +69,8 @@ namespace QuizGame.LevelPlay
         [SerializeField] private Image[] AchievedStarsImages;
 
         [Header("Misc Area")] [SerializeField] private Color AchievedStarColor;
+        [SerializeField] private Color ChoiceSelectedColor;
+        [SerializeField] private Color ChoiceDefaultColor;
 
         #endregion
 
@@ -169,6 +175,18 @@ namespace QuizGame.LevelPlay
             return string.Join(" + ", oddNumbers);
         }
 
+        private void ManageChoiceBtnColorOnClick()
+        {
+            for (int i = 0; i < ChoicesButtons.Length; i++)
+            {
+                if (_currChosenChoiceButton != null && ChoicesButtons[i] == _currChosenChoiceButton)
+                    _currChosenChoiceButton.GetComponent<Image>().color = ChoiceSelectedColor;
+
+                else
+                    ChoicesButtons[i].GetComponent<Image>().color = ChoiceDefaultColor;
+            }
+        }
+
         #endregion
 
         private void Awake()
@@ -200,6 +218,8 @@ namespace QuizGame.LevelPlay
             UIM_GameOver.AddListener(GameOverSetup);
 
             UIM_UpdateUIForCorrectAnswer.AddListener(UpdateUIForCorrectAnswer);
+
+            CheckAnswerBtn.onClick.AddListener(HandleAnswerSelection);
         }
 
 
@@ -210,54 +230,66 @@ namespace QuizGame.LevelPlay
         /// <param name="choices">Array of choices in the form of integer</param>
         private void SetupQuestion(Vector2 ques, int[] choices, int attemptedQues)
         {
-            // Write the question
+            CheckAnswerBtn.interactable = false;
+
+            _currChosenChoiceButton = null;
+            ManageChoiceBtnColorOnClick();
 
             string quesString = GenerateOddSequence((int)ques.x);
             QuestionText.text = $"<color=#007aff>{quesString} </color>";
 
             HeadingQuesCountText.text = $"Ques: {attemptedQues + 1}/{_quesCount}";
-
+            _currCorrectAns = (int)ques.y;
 
             // Setup buttons
 
             for (int i = 0; i < ChoicesButtons.Length; i++)
             {
                 int hChoice = choices[i]; // helper for lambda expression
-                int hAns = (int)ques.y; // helper for lambda expression
+                Button currBtn = ChoicesButtons[i]; // helper for lambda expression
 
                 ChoicesButtons[i].onClick.RemoveAllListeners();
                 ChoicesButtons[i].onClick.AddListener(() =>
                 {
-                    if (hChoice == hAns)
-                    {
-                        _gameManager.GM_OnAnswerCorrect?.Invoke();
+                    CheckAnswerBtn.interactable = true;
 
-                        ChoiceResultPanelAnim(true);
+                    _currChosenChoice = hChoice;
+                    _currChosenChoiceButton = currBtn;
 
-                        AddCoinsOnCorrAnsAnim();
-                    }
-
-                    else
-                    {
-                        _gameManager.GM_OnAnswerIncorrect?.Invoke();
-
-                        ChoiceResultPanelAnim(false);
-                    }
-
-                    if (!_gameOver)
-                    {
-                        QuestionsAreaAnim();
-
-                        ChoicesAreaAnim();
-                    }
-                    else
-                        QuestionsArea.gameObject.SetActive(false);
+                    ManageChoiceBtnColorOnClick();
                 });
 
                 ChoicesButtons[i].transform.GetChild(0).GetComponent<TextMeshProUGUI>().text = choices[i].ToString();
             }
         }
 
+        private void HandleAnswerSelection()
+        {
+            if (_currChosenChoice == _currCorrectAns)
+            {
+                _gameManager.GM_OnAnswerCorrect?.Invoke();
+
+                ChoiceResultPanelAnim(true);
+
+                AddCoinsOnCorrAnsAnim();
+            }
+
+            else
+            {
+                _gameManager.GM_OnAnswerIncorrect?.Invoke();
+
+                ChoiceResultPanelAnim(false);
+            }
+
+            if (!_gameOver)
+            {
+                QuestionsAreaAnim();
+
+                ChoicesAreaAnim();
+            }
+            else
+                QuestionsArea.gameObject.SetActive(false);
+        }
 
         /// <summary>
         /// Update the progress bar with each question answered correctly
