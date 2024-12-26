@@ -3240,11 +3240,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4259474831452957891, guid: 320b4269a3471814db2fe1a35dc4cf64, type: 3}
       propertyPath: m_AnchoredPosition.x
-      value: 1621
+      value: 1412
       objectReference: {fileID: 0}
     - target: {fileID: 4259474831452957891, guid: 320b4269a3471814db2fe1a35dc4cf64, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: -576
+      value: -520
       objectReference: {fileID: 0}
     - target: {fileID: 4259474831452957891, guid: 320b4269a3471814db2fe1a35dc4cf64, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
@@ -5084,14 +5084,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
-  m_Color: {r: 0.665, g: 0.665, b: 0.665, a: 1}
+  m_Color: {r: 0.59119487, g: 0.59119487, b: 0.59119487, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: eef6b69cbab21c443a7db848088ca33f, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 35d3c7984c4dba34b92807c06fc5555b, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -7950,7 +7950,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7656211818183073565, guid: 68ea103f87d8122418c94531ae582795, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: 5.000061
+      value: 5
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
