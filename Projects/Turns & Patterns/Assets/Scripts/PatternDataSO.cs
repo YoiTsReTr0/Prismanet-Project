@@ -13,7 +13,7 @@ public class PatternDataSO : ScriptableObject
     public int TotalBoxesCount;
 
     [Tooltip("Question - where will the fixed images will be placed. Must ALWAYS be less than 'TotalBoxesCount'")]
-    public List<int> PositionsList;
+    public List<int> FixedPositionsList;
 
     /*[Tooltip("If false then rotation criteria will be 45 degree sets")]
     public bool Is90DegreeGame;*/

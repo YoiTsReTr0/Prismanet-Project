@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d761cf4914860d940adbe0719030f676, type: 3}
   m_Name: Game 7
   m_EditorClassIdentifier: 
-  LivesCount: 2
+  LivesCount: 4
   RotateableSprite: {fileID: 21300000, guid: 093fbed49f14c594e9d53c9c5a753bca, type: 3}
   TotalBoxesCount: 7
-  PositionsList: 000000000100000002000000
+  FixedPositionsList: 000000000100000002000000

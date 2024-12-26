@@ -6,6 +6,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.UI;
+using Random = UnityEngine.Random;
 
 namespace MainGame.TurnsAndPatterns
 {
@@ -251,7 +252,7 @@ namespace MainGame.TurnsAndPatterns
                             _progressBarCoroutine =
                                 StartCoroutine(ProgressBarAnimIncrease(ProgressBar.value,
                                     (float)_currCorrAnsCount / _gameData.TotalBoxesCount -
-                                    _gameData.PositionsList.Count));
+                                    _gameData.FixedPositionsList.Count));
                         }
 
                         _gameManager.GM_OnFullAnswerSetIncorrect?.Invoke();
@@ -299,7 +300,7 @@ namespace MainGame.TurnsAndPatterns
                     GameOverText.text = "Out Of Lives";
 
                 score = _isSingleQues ? _currCorrAnsCount : score;
-                maxScore = _isSingleQues ? _gameData.TotalBoxesCount - _gameData.PositionsList.Count : maxScore;
+                maxScore = _isSingleQues ? _gameData.TotalBoxesCount - _gameData.FixedPositionsList.Count : maxScore;
 
 
                 GameOverPanel.SetActive(true);
@@ -325,18 +326,19 @@ namespace MainGame.TurnsAndPatterns
             }
 
             int posNo = 0;
+            int randomDirStarter = Random.Range(0, 8);
             for (int i = 0; i < _gameData.TotalBoxesCount; i++)
             {
-                if (i == _gameData.PositionsList[posNo])
+                if (i == _gameData.FixedPositionsList[posNo])
                 {
                     PresetObj obj = Instantiate(PresetObj, ObjSpawnParent.transform, false);
 
                     obj.RotateImage.sprite = _gameData.RotateableSprite;
-                    obj.Direction = NumToImgDirEnum(i);
+                    obj.Direction = NumToImgDirEnum(i + randomDirStarter);
                     obj.RotateImage.transform.rotation = Quaternion.Euler(0, 0, ImgDirEnumToRotation(obj.Direction));
 
                     posNo++;
-                    posNo = Mathf.Clamp(posNo, 0, _gameData.PositionsList.Count - 1);
+                    posNo = Mathf.Clamp(posNo, 0, _gameData.FixedPositionsList.Count - 1);
                 }
 
                 else
@@ -347,7 +349,7 @@ namespace MainGame.TurnsAndPatterns
                     obj.RotateImage.sprite = _gameData.RotateableSprite;
                     obj.CurrDirection =
                         ImageDirection.North; // Always North in the beginning, controls will control new directions
-                    obj.FinalDirection = NumToImgDirEnum(i);
+                    obj.FinalDirection = NumToImgDirEnum(i + randomDirStarter);
 
                     obj.SelectionBtn.onClick.AddListener(() => { SetupBtnClickToSelect(obj); });
                 }
@@ -421,7 +423,7 @@ namespace MainGame.TurnsAndPatterns
                 }
             }
 
-            _currCorrAnsCount = _gameData.TotalBoxesCount - _gameData.PositionsList.Count - incorrectAnsCount;
+            _currCorrAnsCount = _gameData.TotalBoxesCount - _gameData.FixedPositionsList.Count - incorrectAnsCount;
 
             if (incorrectAnsCount > 0)
             {
